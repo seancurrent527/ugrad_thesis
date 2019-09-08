@@ -9,7 +9,7 @@ import random
 import numpy as np
 import keras.backend as K
 
-class NetworkModel:
+class Network:
     def __init__(self):
         self.input = None
         self.output = None

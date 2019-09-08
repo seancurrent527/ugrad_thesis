@@ -3,9 +3,9 @@ Populus object implementation.
 
 Populus objects represent the population of a state.
 '''
-from regions import State
+from states import State
 
-class Populus:
+class Population:
 
     network = None
 
@@ -24,6 +24,6 @@ class Populus:
     def recalculate(self):
         self.state.stats['Population'] = self.population * 1000
         self.state.stats['Pop. Density'] = self.population * 1000 / self.state.stats['Area']
-        if Populus.network:
+        if Population.network:
             adjusted = Populus.network.predict(State.to_X_array([self.state]))
             self.migrants, self.births, self.deaths, self.survival = adjusted[0]
