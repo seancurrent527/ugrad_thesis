@@ -1,6 +1,8 @@
 '''
 Functional utilities for scenarios and network training.
 '''
+import numpy as np
+import keras.backend as K
 
 def noisier(X, y, degree = 0.01, samples = 1000):
     Xdata = [*X]

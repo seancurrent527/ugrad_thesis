@@ -2,16 +2,17 @@
 Main module for migrant based population model.
 '''
 from keras.models import Model
-from networks import r2_keras
+from utils import r2_keras
 from scenarios import Scenario
-from keras.layers import Dense
+from keras.layers import Dense, Input
+from keras.optimizers import Adam
 import os
 
 def test1_network(input_shape):
     xin = Input(input_shape)
     xhid = Dense(128, activation = 'relu')(xin)
     xhid = Dense(64, activation = 'relu')(xhid)
-    xout = Dense(3)(xhid)
+    xout = Dense(3, activation = 'tanh')(xhid)
     return Model(xin, xout)
 
 def test1():
@@ -21,7 +22,9 @@ def test1():
     scene = Scenario('2013', train_years = train_years, dev_years = dev_years)
     inshape, outshape = scene.data_shape
     model = test1_network(inshape)
-    scene.set_network(model, epochs = 30, metrics = [r2_keras], loss='mse')
+    compile_args = dict(metrics = [r2_keras], loss='mse', optimizer = Adam(lr = 0.00001))
+    fit_args = dict(epochs = 100)
+    scene.set_network(model, compile_args, fit_args)
     scene.run()
 
 if __name__ == '__main__':

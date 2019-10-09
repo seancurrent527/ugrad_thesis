@@ -26,9 +26,10 @@ class State:
 
     def recalculate(self):
         self.features['SP.POP.TOTL'] = self.population * 1000
-        self.features['EN.POP.DENS'] = self.population * 1000 / self.stats['AG.LND.TOTL.K2']
+        self.features['EN.POP.DNST'] = self.population * 1000 / self.features['AG.LND.TOTL.K2']
         if State.network:
-            adjusted = State.network.predict(State.to_X_array([self]))
+            adjusted = State.network.predict(State.xScaler.transform(State.to_X_array([self])))
+            adjusted = State.yScaler.inverse_transform(adjusted)
             self.migrants, self.births, self.deaths = adjusted[0]
 
     @classmethod
@@ -36,8 +37,8 @@ class State:
         features = pd.read_pickle('features.pkl')
         targets = pd.read_pickle('targets.pkl')
         states = defaultdict(list)
-        for (name, year), row in df.iterrows():
-            st = cls(name, year, stats = dict(row))
+        for name, year in targets.index:
+            st = cls(name, year, targets = targets.loc[(name, year), :], features = features.loc[(name, year), :])
             states[year].append(st)
         return states
 
