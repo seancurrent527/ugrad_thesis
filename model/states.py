@@ -9,19 +9,35 @@ import pandas as pd, numpy as np
 class State:
 
     targets = ['Net migration', 'Birthrate', 'Deathrate', 'Infant mortality']
+    network = None
 
-    def __init__(self, name):
+    def __init__(self, name, stats = None):
         self.name = name
-        self.stats = {}
+        self.stats = {} if stats is None else stats
+        if stats:
+            self.population = self.stats['Population']//1000 # to scale with birth/death rates
+            self.migrants = self.stats['Net migration']
+            self.births = self.stats['Birthrate']
+            self.deaths = self.stats['Deathrate']
+            self.survival = self.stats['Infant mortality']
+
+    def timestep(self):
+        self.population = self.population + self.births - self.survival - self.deaths + self.migrants
+
+    def recalculate(self):
+        self.stats['Population'] = self.population * 1000
+        self.stats['Pop. Density'] = self.population * 1000 / self.stats['Area']
+        if State.network:
+            adjusted = State.network.predict(State.to_X_array([self]))
+            self.migrants, self.births, self.deaths, self.survival = adjusted[0]
 
     @classmethod
     def from_countries_of_the_world(cls):
-        df = csv_to_dataframe('../../data/countries_of_the_world.csv')
+        df = csv_to_dataframe('C:/Users/Sean/Documents/Thesis/migration/data/misc/countries_of_the_world.csv')
         format_df(df)
         states = []
         for name, row in df.iterrows():
-            st = cls(name)
-            st.stats = dict(row)
+            st = cls(name, stats = dict(row))
             states.append(st)
         return states
 
@@ -50,7 +66,7 @@ class State:
 
     @staticmethod
     def region_mapping():
-        df = csv_to_dataframe('../../data/countries_of_the_world.csv')
+        df = csv_to_dataframe('C:/Users/Sean/Documents/Thesis/migration/data/misc/countries_of_the_world.csv')
         format_df(df)
         regions = set(df['Region'])
         return {r:i for i,r in enumerate(sorted(regions))}
@@ -86,7 +102,7 @@ def format_df(df):
         for j in range(cols):
             if type(df.iloc[i, j]) == str:
                 df.iloc[i, j] = df.iloc[i, j].strip().title()
-    df.index = [c.strip() for c in df.index]
+    df.index = [c.strip().lower().replace(',', '') for c in df.index]
     df.dropna(inplace = True)
 
 def init_setup(fname):

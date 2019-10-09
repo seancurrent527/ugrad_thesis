@@ -1,17 +1,18 @@
 '''
 Main module for migrant based population model.
 '''
-from networks import Network, r2_keras
+from keras.models import Model
+from networks import r2_keras
 from scenarios import Scenario
 from keras.layers import Dense
 import os
 
 def test1_network(input_shape):
-    model = Network()
-    model.add(Dense(128, input_shape = input_shape, activation = 'tanh'))
-    model.add(Dense(64, activation = 'tanh'))
-    model.add(Dense(4))
-    return model
+    xin = Input(input_shape)
+    xhid = Dense(128, activation = 'relu')(xin)
+    xhid = Dense(64, activation = 'relu')(xhid)
+    xout = Dense(4)(xhid)
+    return Model(xin, xout)
 
 def test1():
     scene = Scenario('test1')
