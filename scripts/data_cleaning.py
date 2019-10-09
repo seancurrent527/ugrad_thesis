@@ -7,6 +7,8 @@ from tqdm import tqdm
 
 DISCOVER_FEATS = False
 
+TARGET_FEATS = {'SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN'}
+
 FEATURES = {'EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/urban)
             'SE.PRM.TENR',          # - percent enrolled primary education
             'NY.ADJ.NNTY.KD.ZG',    # - adjusted net national income

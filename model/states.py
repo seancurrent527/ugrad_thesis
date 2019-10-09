@@ -5,50 +5,52 @@ This is an agent basis for a population migration model.
 '''
 import os, json, requests
 import pandas as pd, numpy as np
+from collections import defaultdict
 
 class State:
 
-    targets = ['Net migration', 'Birthrate', 'Deathrate', 'Infant mortality']
     network = None
 
-    def __init__(self, name, stats = None):
+    def __init__(self, name, year, targets = None, features = None):
         self.name = name
-        self.stats = {} if stats is None else stats
-        if stats:
-            self.population = self.stats['Population']//1000 # to scale with birth/death rates
-            self.migrants = self.stats['Net migration']
-            self.births = self.stats['Birthrate']
-            self.deaths = self.stats['Deathrate']
-            self.survival = self.stats['Infant mortality']
+        self.year = year
+        self.targets = targets
+        self.features = features
+        self.population = self.features['SP.POP.TOTL'] // 1000 # Scale to blocks of 1000
+        self.migrants = self.targets['SM.POP.NETM'] // 1000 # Scale to blocks of 1000
+        self.births = self.targets['SP.DYN.CDRT.IN']
+        self.deaths = self.targets['SP.DYN.CBRT.IN']
 
     def timestep(self):
-        self.population = self.population + self.births - self.survival - self.deaths + self.migrants
+        self.population = self.population + self.births - self.deaths + self.migrants
 
     def recalculate(self):
-        self.stats['Population'] = self.population * 1000
-        self.stats['Pop. Density'] = self.population * 1000 / self.stats['Area']
+        self.features['SP.POP.TOTL'] = self.population * 1000
+        self.features['EN.POP.DENS'] = self.population * 1000 / self.stats['AG.LND.TOTL.K2']
         if State.network:
             adjusted = State.network.predict(State.to_X_array([self]))
-            self.migrants, self.births, self.deaths, self.survival = adjusted[0]
+            self.migrants, self.births, self.deaths = adjusted[0]
 
     @classmethod
     def from_countries_of_the_world(cls):
-        df = csv_to_dataframe('C:/Users/Sean/Documents/Thesis/migration/data/misc/countries_of_the_world.csv')
-        format_df(df)
-        states = []
-        for name, row in df.iterrows():
-            st = cls(name, stats = dict(row))
-            states.append(st)
+        features = pd.read_pickle('features.pkl')
+        targets = pd.read_pickle('targets.pkl')
+        states = defaultdict(list)
+        for (name, year), row in df.iterrows():
+            st = cls(name, year, stats = dict(row))
+            states[year].append(st)
         return states
 
     @staticmethod
     def to_X_array(states):
-        return np.array([[st.stats[key] for key in sorted(st.stats) if key not in State.targets] for st in states])
+        return np.array([st.features.values for st in states])
 
     @staticmethod
     def to_y_array(states):
-        return np.array([[st.stats[t] for t in State.targets] for st in states])
-
+        return np.array([st.targets.values for st in states])
+    
+    ### DEPRECATED ###
+    '''
     @staticmethod
     def to_json(fp, states):
         dct = {st:st.stats for st in states}
@@ -63,7 +65,7 @@ class State:
             st.stats = dct[stname]
             states.append(st)
         return states
-
+    
     @staticmethod
     def region_mapping():
         df = csv_to_dataframe('C:/Users/Sean/Documents/Thesis/migration/data/misc/countries_of_the_world.csv')
@@ -76,8 +78,12 @@ class State:
         mp = State.region_mapping()
         for st in states:
             st.stats['Region'] = mp[st.stats['Region']]
-
+    '''
 #===========================================================================================
+
+### DEPRECATED ###
+
+'''
 def csv_from_web(csvname, url, tnum):
     #https://en.wikipedia.org/wiki/Democracy_Index, 'wikitable sortable'
     #https://en.wikipedia.org/wiki/World_Happiness_Report, 'wikitable sortable'
@@ -88,15 +94,9 @@ def csv_from_web(csvname, url, tnum):
     df.drop_duplicates().to_csv(csvname, header = 0, index = False)
 
 def csv_to_dataframe(csvname):
-    '''
-    reads in a csv to a dataframe
-    '''
     return pd.read_csv(csvname, decimal = ',', index_col = 0)
     
 def format_df(df):
-    '''
-    formats the dataframe in place
-    '''
     rows, cols = df.shape
     for i in range(rows):
         for j in range(cols):
@@ -110,4 +110,4 @@ def init_setup(fname):
     State.categorize_states(states)
     with open(fname, 'w') as fp:
         State.to_json(fp, states)
-
+'''
