@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 DISCOVER_FEATS = False
 
-TARGET_FEATS = {'SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN'}
+TARGET_FEATS = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN', 'SP.POP.TOTL.NX']
 
 FEATURES = {'EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/urban)
             'SE.PRM.TENR',          # - percent enrolled primary education
@@ -75,6 +75,7 @@ def iso_dict(start = '2000', stop = '2015'):
             group_df = group_df.set_index('Indicator Code')
             smooth_data(group_df, start, stop)
             iso_d[code] = group_df.loc[:, start: stop]
+            iso_d[code].loc['SP.POP.TOTL.NX'] = group_df.loc['SP.POP.TOTL', str(int(start) + 1): str(int(stop) + 1)]
     return iso_d
 
 def smooth_data(df, start = '2000', stop = '2015'):
@@ -123,7 +124,7 @@ def fill_nas(iso_df):
 def main():
     iso_dfs = iso_dict('2000', '2015')
     print(len(iso_dfs))
-    target_feats = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN']
+    target_feats = TARGET_FEATS
     targets = select_features(iso_dfs, target_feats)
     filled_targets = fill_nas(targets)
     if DISCOVER_FEATS:
