@@ -122,7 +122,7 @@ def fill_nas(iso_df):
     return iso_df.fillna(iso_df.mean(axis = 0))
 
 def main():
-    iso_dfs = iso_dict('2000', '2015')
+    iso_dfs = iso_dict('2000', '2017')
     print(len(iso_dfs))
     target_feats = TARGET_FEATS
     targets = select_features(iso_dfs, target_feats)
@@ -134,8 +134,8 @@ def main():
         feats = FEATURES | CONSISTENT_2000_2015
     features = select_features(iso_dfs, feats)
     filled_features = fill_nas(features)
-    filled_targets.to_pickle('targets.pkl')
-    filled_features.to_pickle('features.pkl')
+    filled_targets.to_pickle('simple_targets.pkl')
+    filled_features.to_pickle('simple_features.pkl')
     print(filled_targets)
     print(filled_features)
 

@@ -10,12 +10,13 @@ from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 class Scenario:
-    def __init__(self, name, train_years, dev_years, network=None, outfile=None,
+    def __init__(self, name, train_years, dev_years, network=None,
                             year = None, compile_args = None, fit_args = None, **kwargs):
         self.name = name
         self.network = network
         State.network = self.network
-        self.outfile = outfile if outfile else open(self.name + '_out.csv', 'w')
+        self.poutfile = open(self.name + '_p_out.csv', 'w')
+        self.moutfile = open(self.name + '_m_out.csv', 'w')
         self.states = State.from_countries_of_the_world()
         self.train_years = train_years
         self. dev_years = dev_years
@@ -30,25 +31,16 @@ class Scenario:
         Xdev = np.vstack([State.to_X_array(self.states[yr]) for yr in self.dev_years])
         y = np.vstack([State.to_y_array(self.states[yr]) for yr in self.train_years])
         ydev = np.vstack([State.to_y_array(self.states[yr]) for yr in self.dev_years])
-        Xpop = np.vstack([State.to_X_pop_array(self.states[yr]) for yr in self.train_years])
-        Xpopdev = np.vstack([State.to_X_pop_array(self.states[yr]) for yr in self.dev_years])
-        ypop = np.vstack([State.to_y_pop_array(self.states[yr]) for yr in self.train_years])
-        ypopdev = np.vstack([State.to_y_pop_array(self.states[yr]) for yr in self.dev_years])
-        xScaler, yScaler, popScaler = MinMaxScaler((-1, 1)), MinMaxScaler((-1, 1)), MinMaxScaler((-1, 1))
+        xScaler, yScaler = MinMaxScaler(), MinMaxScaler() # StandardScaler(), StandardScaler()
         X = xScaler.fit_transform(X)
         Xdev = xScaler.transform(Xdev)
         y = yScaler.fit_transform(y)
         ydev = yScaler.transform(ydev)
-        Xpop = popScaler.fit_transform(Xpop)
-        Xpopdev = popScaler.transform(Xpopdev)
-        ypop = popScaler.transform(ypop)
-        ypopdev = popScaler.transform(ypopdev)
         self.xScaler = State.xScaler = xScaler
         self.yScaler = State.yScaler = yScaler
-        self.popScaler = State.popScaler = popScaler
         print(X.shape, y.shape)
         self.network.compile(**compile_args)
-        self.network.fit([X, Xpop], [y, ypop], validation_data = ([Xdev, Xpopdev], [ydev, ypopdev]), **fit_args)
+        self.network.fit(X, y, validation_data = (Xdev, ydev), **fit_args)
 
     def set_network(self, network, compile_args, fit_args):
         self.network = network
@@ -56,21 +48,22 @@ class Scenario:
         self.init_train(compile_args, fit_args)
 
     def write_out(self):
-        print(*[pop.population for pop in self._running], sep = ',', file = self.outfile)
+        print(*[pop.population for pop in self._running], sep = ',', file = self.poutfile)
+        print(*[pop.migrants for pop in self._running], sep = ',', file = self.moutfile)
 
-    def run(self, timesteps = 100, year = '2000'):
+    def run(self, year = '2000', timesteps = 100):
         self._running = self.states[year]
-        print(*[pop.name for pop in self._running], sep = ',', file = self.outfile)
+        print(*[pop.name for pop in self._running], sep = ',', file = self.poutfile)
+        print(*[pop.name for pop in self._running], sep = ',', file = self.moutfile)
         for t in tqdm(range(timesteps)):
             for pop in self._running:
                 pop.timestep()
                 pop.recalculate()
-            self.write_out()
             migrations = [pop.migrants for pop in self._running]
-            #print(migrations)
             moving = -sum(m for m in migrations if m < 0)
             accepting = sum(m for m in migrations if m > 0)
             acceptors = [max(0, m/accepting) for m in migrations]
             for i, pop in enumerate(self._running):
                 if pop.migrants > 0:
                     pop.migrants = acceptors[i] * moving
+            self.write_out()

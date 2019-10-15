@@ -16,28 +16,26 @@ class State:
         self.year = year
         self.targets = targets
         self.features = features
-        self.population = self.features['SP.POP.TOTL'] // 1000 # Scale to blocks of 1000
-        self.migrants = self.targets['SM.POP.NETM'] // 1000 # Scale to blocks of 1000
-        self.births = self.targets['SP.DYN.CDRT.IN']
-        self.deaths = self.targets['SP.DYN.CBRT.IN']
+        self.population = self.features['SP.POP.TOTL']
+        self.migrants = self.targets['SM.POP.NETM']
+        self.deaths = self.targets['SP.DYN.CDRT.IN']
+        self.births = self.targets['SP.DYN.CBRT.IN']
 
     def timestep(self):
-        self.population = self.population + self.population * (self.births - self.deaths) + self.migrants
+        self.population = self.population + self.population * (self.births - self.deaths) / 1000 + self.migrants
 
     def recalculate(self):
-        self.features['SP.POP.TOTL'] = self.population * 1000
-        self.features['EN.POP.DNST'] = self.population * 1000 / self.features['AG.LND.TOTL.K2']
+        self.features['SP.POP.TOTL'] = self.population
+        self.features['EN.POP.DNST'] = self.population / self.features['AG.LND.TOTL.K2']
         if State.network:
-            adjusted, adj_pop = State.network.predict([State.xScaler.transform(State.to_X_array([self])),
-                                              State.popScaler.transform(State.to_X_pop_array([self]))])
+            adjusted = State.network.predict(State.xScaler.transform(State.to_X_array([self])))
             adjusted = State.yScaler.inverse_transform(adjusted)
-            print(adjusted)
-            self.migrants, self.deaths, self.births = adjusted[0]
+            self.migrants, self.deaths, self.births, _ = adjusted[0]
 
     @classmethod
     def from_countries_of_the_world(cls):
-        features = pd.read_pickle('features.pkl')
-        targets = pd.read_pickle('targets.pkl')
+        features = pd.read_pickle('simple_features.pkl')
+        targets = pd.read_pickle('simple_targets.pkl')
         states = defaultdict(list)
         for name, year in targets.index:
             st = cls(name, year, targets = targets.loc[(name, year), :], features = features.loc[(name, year), :])
@@ -50,14 +48,7 @@ class State:
 
     @staticmethod
     def to_y_array(states):
-        return np.array([st.targets[['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN']].values for st in states])
-
-    @staticmethod
-    def to_X_pop_array(states):
-        return np.array([[st.features['SP.POP.TOTL']] for st in states])
-
-    def to_y_pop_array(states):
-        return np.array([[st.targets['SP.POP.TOTL.NX']] for st in states])
+        return np.array([st.targets.values for st in states])
     
     ### DEPRECATED ###
     '''
