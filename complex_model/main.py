@@ -2,23 +2,18 @@
 Main module for migrant based population model.
 '''
 from keras.models import Model
-from utils import r2_keras
+from utils import r2_keras, ConCurrent
 from scenarios import Scenario
 from keras.layers import Dense, Input, Concatenate
 from keras.optimizers import Adam
-from keras.regularizers import l2
+from keras.regularizers import l2, l1
 from keras.callbacks import TensorBoard, ReduceLROnPlateau, EarlyStopping
 import os
 
-def test1_network(input_shape):
+def model_network(input_shape):
     xin = Input(input_shape)
-    xhid1 = Dense(16, activation = 'relu', kernel_regularizer=l2(0.01))(xin)
-    xhid1 = Concatenate()([xin, xhid1])
-    xhid2 = Dense(16, activation = 'relu', kernel_regularizer=l2(0.01))(xhid1)
-    xhid2 = Concatenate()([xhid1, xhid2])
-    xhid3 = Dense(16, activation = 'relu', kernel_regularizer=l2(0.01))(xhid2)
-    xhid3 = Concatenate()([xhid2, xhid3])
-    xout = Dense(input_shape[0])(xhid3)
+    xhid = ConCurrent(16, 3, activation='relu')(xin)
+    xout = Dense(input_shape[0])(xhid)
     return Model(xin, xout)
 
 def test1():
@@ -27,7 +22,7 @@ def test1():
     test_years = ['2013', '2014', '2015', '2016']
     scene = Scenario('2013_complex', train_years = train_years, dev_years = dev_years)
     inshape, outshape = scene.data_shape
-    model = test1_network(inshape)
+    model = model_network(inshape)
     compile_args = dict(metrics = [r2_keras], loss='mse', optimizer = Adam(lr = 0.00001))
     fit_args = dict(epochs = 500, callbacks = [TensorBoard(log_dir='.\logs', histogram_freq=5), EarlyStopping(patience=10, restore_best_weights=True)])
     scene.set_network(model, compile_args, fit_args)
