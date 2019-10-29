@@ -1,7 +1,7 @@
 '''
 Functional utilities for scenarios and network training.
 '''
-import numpy as np, random
+import numpy as np
 import keras.backend as K
 from keras.layers import Layer
 from keras import initializers, regularizers, constraints, activations, losses
@@ -95,7 +95,3 @@ def r2_keras(y_true, y_pred):
     SS_res =  K.sum(K.square(y_true - y_pred))
     SS_tot = K.sum(K.square(y_true - K.mean(y_true))) 
     return (1 - SS_res/(SS_tot + K.epsilon()))
-
-def r2_population(y_true, y_pred):
-    y_true, y_pred = y_true[..., :4], y_pred[..., :4]
-    return r2_keras(y_true, y_pred)

@@ -9,7 +9,7 @@ from keras.optimizers import Adam
 from keras.regularizers import l2
 import os
 
-def test1_network(input_shape):
+def model_network(input_shape):
     xin = Input(input_shape)
     xhid = Dense(128, activation = 'relu', kernel_regularizer=l2(0.01))(xin)
     xhid = Dense(64, activation = 'relu', kernel_regularizer=l2(0.01))(xhid)
@@ -24,7 +24,7 @@ def test1():
     test_years = ['2013', '2014', '2015', '2016', '2017']
     scene = Scenario('2013_simple', train_years = train_years, dev_years = dev_years)
     inshape, outshape = scene.data_shape
-    model = test1_network(inshape)
+    model = model_network(inshape)
     compile_args = dict(metrics = [r2_keras], loss='mse', optimizer = Adam(lr = 0.00001))
     fit_args = dict(epochs = 250)
     scene.set_network(model, compile_args, fit_args)

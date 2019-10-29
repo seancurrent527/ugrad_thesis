@@ -7,28 +7,7 @@ from tqdm import tqdm
 
 DISCOVER_FEATS = False
 
-TARGET_FEATS = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN', 'SP.POP.TOTL']
-
-NECESSARY_FEATS = ['SM.POP.NETM',
-                   'SP.DYN.CDRT.IN',
-                   'SP.DYN.CBRT.IN',
-                   'SP.POP.TOTL',
-                   'SP.POP.DPND',
-                   'VC.BTL.DETH',
-                   'SL.TLF.TOTL.IN',
-                   'MS.MIL.XPND.GD.ZS',
-                   'EN.POP.DNST',
-                   'SP.DYN.LE00.MA.IN',
-                   'SP.RUR.TOTL.ZS',
-                   'SP.URB.TOTL.IN.ZS',
-                   'SP.URB.TOTL',
-                   'SP.RUR.TOTL',
-                   'EN.ATM.METH.AG.KT.CE',
-                   'SP.DYN.AMRT.FE',
-                   'SP.RUR.TOTL.ZG',
-                   'SP.DYN.TFRT.IN',
-                   'EN.ATM.NOXE.AG.KT.CE',
-                   'SP.DYN.LE00.IN']
+TARGET_FEATS = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN']
 
 FEATURES = ['EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/urban)
             'SE.PRM.TENR',          # - percent enrolled primary education
@@ -67,6 +46,7 @@ FEATURES = ['EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/ur
 CONSISTENT_2000_2015 = ['SP.DYN.AMRT.MA',       # - Mortality rate, male
                         'SP.DYN.LE00.MA.IN',    # - Life expectancy, male
                         'SP.RUR.TOTL.ZS',       # - Percent Rural population
+                        'SP.POP.TOTL',          # - Total population
                         'SP.URB.TOTL.IN.ZS',    # - Percent Urban population
                         'EN.ATM.NOXE.EG.KT.CE', # - Energy no2 emissions
                         'SP.URB.TOTL',          # - Total Urban population
@@ -144,7 +124,6 @@ def fill_nas(iso_df):
 def main():
     iso_dfs = iso_dict('2000', '2017')
     print(len(iso_dfs))
-    #all_feats = NECESSARY_FEATS
     all_feats = TARGET_FEATS + FEATURES + CONSISTENT_2000_2015
     targets = select_features(iso_dfs, all_feats, '2001', '2017')
     filled_targets = fill_nas(targets)

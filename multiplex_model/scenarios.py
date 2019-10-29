@@ -15,6 +15,8 @@ class Scenario:
         self.name = name
         self.network = network
         State.network = self.network
+        self.poutfile = open(self.name + '_p_out.csv', 'w')
+        self.moutfile = open(self.name + '_m_out.csv', 'w')
         self.states = State.from_countries_of_the_world()
         self.train_years = train_years
         self. dev_years = dev_years
@@ -24,7 +26,7 @@ class Scenario:
         elif network and not (compile_args and fit_args):
             raise TypeError('compile_args or fit_args not defined for network.')
 
-    def init_train(self, compile_args, fit_args, noise = None):
+    def init_train(self, compile_args, fit_args):
         training_states = np.random.binomial(1, 0.75, size = (167,)).astype(bool)
         X = np.vstack([State.to_X_array(self.states[yr])[training_states] for yr in self.train_years])
         Xdev = np.vstack([State.to_X_array(self.states[yr])[~training_states] for yr in self.dev_years])
@@ -39,23 +41,19 @@ class Scenario:
         self.yScaler = State.yScaler = yScaler
         print(X.shape, y.shape)
         self.network.compile(**compile_args)
-        if noise:
-            X, y = noisier(X, y, degree = 0.1, samples = 10000)
         self.network.fit(X, y, validation_data = (Xdev, ydev), **fit_args)
 
-    def set_network(self, network, compile_args, fit_args, noise = None):
+    def set_network(self, network, compile_args, fit_args):
         self.network = network
         State.network = self.network
-        self.init_train(compile_args, fit_args, noise = noise)
+        self.init_train(compile_args, fit_args)
 
     def write_out(self):
         print(*[pop.population for pop in self._running], sep = ',', file = self.poutfile)
         print(*[pop.migrants for pop in self._running], sep = ',', file = self.moutfile)
 
-    def run(self, year = '2000', timesteps = 100):
+    def run(self, year = '2000', timesteps = 50):
         self._running = self.states[year]
-        self.poutfile = open(year + '_' + self.name + '_p_out.csv', 'w')
-        self.moutfile = open(year + '_' + self.name + '_m_out.csv', 'w')
         print(*[pop.name for pop in self._running], sep = ',', file = self.poutfile)
         print(*[pop.name for pop in self._running], sep = ',', file = self.moutfile)
         for t in tqdm(range(timesteps)):

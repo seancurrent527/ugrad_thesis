@@ -25,13 +25,12 @@ class State:
         self.population = self.population + self.population * (self.births - self.deaths) / 1000 + self.migrants
 
     def recalculate(self):
-        #self.features['SP.POP.TOTL'] = self.population
-        #self.features['EN.POP.DNST'] = self.population / self.features['AG.LND.TOTL.K2']
+        self.features['SP.POP.TOTL'] = self.population
+        self.features['EN.POP.DNST'] = self.population / self.features['AG.LND.TOTL.K2']
         if State.network:
             adjusted = State.network.predict(State.xScaler.transform(State.to_X_array([self])))
             adjusted = State.yScaler.inverse_transform(adjusted)
             self.migrants, self.deaths, self.births = adjusted[0][0:3]
-            self.features.values[:] = adjusted[0]
 
     @classmethod
     def from_countries_of_the_world(cls):
