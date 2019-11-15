@@ -76,8 +76,8 @@ def plot_2000(targs, preds):
     training_preds = preds.iloc[1:, training_states]
     testing_targs = targs.iloc[:, ~training_states]
     testing_preds = preds.iloc[1:, ~training_states]
+    fig = plt.figure(figsize=(8,8))
     for i in range(len(training_targs.columns) // 16 + 1):
-        fig = plt.figure(figsize=(8,8))
         cut = i * 16
         t, p = training_targs.iloc[:, cut:cut + 16], training_preds.iloc[:, cut:cut + 16]  
         for j in range(16):
@@ -89,9 +89,11 @@ def plot_2000(targs, preds):
             sub.plot(p.iloc[:, j])
             sub.set_title(t.columns[j])
         plt.tight_layout()
-        plt.show()
+        plt.plot()
+        plt.draw()
+        plt.pause(10)
+    fig = plt.figure(figsize=(8,8))
     for i in range(len(testing_targs.columns) // 16 + 1):
-        fig = plt.figure(figsize=(8,8))
         cut = i * 16
         t, p = testing_targs.iloc[:, cut:cut + 16], testing_preds.iloc[:, cut:cut + 16]  
         for j in range(16):
@@ -103,25 +105,37 @@ def plot_2000(targs, preds):
             sub.plot(p.iloc[:, j])
             sub.set_title(t.columns[j])
         plt.tight_layout()
-        plt.show()
+        plt.draw()
+        plt.pause(10)
 
 
 def main():
     args = _parse_args()
     feats = pd.read_pickle('complex_features.pkl')
     targets = pd.read_pickle('complex_targets.pkl')
-    model = get_model('complex_weights.h5', (len(feats.columns),))
-    year_data_p = pd.read_csv('2000_' + args.type + '_p_out.csv')
-    year_data_m = pd.read_csv('2000_' + args.type + '_m_out.csv')
+    #model = get_model('complex_weights.h5', (len(feats.columns),))
+    year_data_p = pd.read_csv('generated_data/2000_' + args.type + '_p_out.csv')
+    year_data_m = pd.read_csv('generated_data/2000_' + args.type + '_m_out.csv')
+    year_data_d = pd.read_csv('generated_data/2000_' + args.type + '_d_out.csv')
+    year_data_b = pd.read_csv('generated_data/2000_' + args.type + '_b_out.csv')
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
     m_targs = pd.DataFrame(data = np.array([df['SM.POP.NETM'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_m.columns)
+    d_targs = pd.DataFrame(data = np.array([df['SP.DYN.CDRT.IN'].values for _, df in targets.groupby(level = 0)]).T,
+                           columns = year_data_d.columns)
+    b_targs = pd.DataFrame(data = np.array([df['SP.DYN.CBRT.IN'].values for _, df in targets.groupby(level = 0)]).T,
+                           columns = year_data_b.columns)
     #test_effects(model, feats, targets)
+    plt.ion()
     np.random.seed(147)
     plot_2000(p_targs, year_data_p)
     np.random.seed(147)
     plot_2000(m_targs, year_data_m)
+    np.random.seed(147)
+    plot_2000(d_targs, year_data_d)
+    np.random.seed(147)
+    plot_2000(b_targs, year_data_b)
 
 if __name__ == '__main__':
     main()

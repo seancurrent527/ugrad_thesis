@@ -1,7 +1,7 @@
 '''
 Functional utilities for scenarios and network training.
 '''
-import numpy as np
+import numpy as np, random
 import keras.backend as K
 from keras.layers import Layer
 from keras import initializers, regularizers, constraints, activations, losses
@@ -95,3 +95,18 @@ def r2_keras(y_true, y_pred):
     SS_res =  K.sum(K.square(y_true - y_pred))
     SS_tot = K.sum(K.square(y_true - K.mean(y_true))) 
     return (1 - SS_res/(SS_tot + K.epsilon()))
+
+def r2_population(y_true, y_pred):
+    y_true, y_pred = y_true[..., :4], y_pred[..., :4]
+    return r2_keras(y_true, y_pred)
+
+def wrap_years(X, y, num_countries, wrap):
+    year_arrays = [y[i * num_countries: (i + 1) * num_countries] for i in range(len(y) // num_countries)]
+    concat_new_X = []
+    concat_new_y = []
+    for i in range(len(year_arrays) - wrap):
+        concat_new_y.append(np.concatenate(year_arrays[i : i + wrap], axis = -1))
+        concat_new_X.append(X[i * num_countries: (i + 1) * num_countries])
+    new_X = np.concatenate(concat_new_X, axis = 0)
+    new_y = np.concatenate(concat_new_y, axis = 0)
+    return new_X, new_y

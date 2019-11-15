@@ -7,9 +7,30 @@ from tqdm import tqdm
 
 DISCOVER_FEATS = False
 
-TARGET_FEATS = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN', 'SP.POP.TOTL.NX']
+TARGET_FEATS = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN', 'SP.POP.TOTL']
 
-FEATURES = {'EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/urban)
+NECESSARY_FEATS = ['SM.POP.NETM',
+                   'SP.DYN.CDRT.IN',
+                   'SP.DYN.CBRT.IN',
+                   'SP.POP.TOTL',
+                   'SP.POP.DPND',
+                   'VC.BTL.DETH',
+                   'SL.TLF.TOTL.IN',
+                   'MS.MIL.XPND.GD.ZS',
+                   'EN.POP.DNST',
+                   'SP.DYN.LE00.MA.IN',
+                   'SP.RUR.TOTL.ZS',
+                   'SP.URB.TOTL.IN.ZS',
+                   'SP.URB.TOTL',
+                   'SP.RUR.TOTL',
+                   'EN.ATM.METH.AG.KT.CE',
+                   'SP.DYN.AMRT.FE',
+                   'SP.RUR.TOTL.ZG',
+                   'SP.DYN.TFRT.IN',
+                   'EN.ATM.NOXE.AG.KT.CE',
+                   'SP.DYN.LE00.IN']
+
+FEATURES = ['EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/urban)
             'SE.PRM.TENR',          # - percent enrolled primary education
             'NY.ADJ.NNTY.KD.ZG',    # - adjusted net national income
             'SP.ADO.TFRT',          # - adolescent fertility rate
@@ -36,17 +57,16 @@ FEATURES = {'EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/ur
             'MS.MIL.XPND.GD.ZS',    # - percent military expenditure
             #'EN.ATM.NOXE.KT.CE',    # - no2 emissions
             'SH.MED.PHYS.ZS',       # - physicians per 1000
-            'EN.POP.DNST'}          # - population density
+            'EN.POP.DNST']          # - population density
             #'SP.POP.TOTL',          # - total population
             #'EG.ELC.RNEW.ZS',       # - percent renewable energy
             #'SP.RUR.TOTL',          # - Rural Population
             #'SL.UEM.TOTL.NE.ZS',    # - total unemployment
             #'SP.URB.TOTL'}          # - Urban Population
 
-CONSISTENT_2000_2015 = {'SP.DYN.AMRT.MA',       # - Mortality rate, male
+CONSISTENT_2000_2015 = ['SP.DYN.AMRT.MA',       # - Mortality rate, male
                         'SP.DYN.LE00.MA.IN',    # - Life expectancy, male
                         'SP.RUR.TOTL.ZS',       # - Percent Rural population
-                        'SP.POP.TOTL',          # - Total population
                         'SP.URB.TOTL.IN.ZS',    # - Percent Urban population
                         'EN.ATM.NOXE.EG.KT.CE', # - Energy no2 emissions
                         'SP.URB.TOTL',          # - Total Urban population
@@ -62,11 +82,11 @@ CONSISTENT_2000_2015 = {'SP.DYN.AMRT.MA',       # - Mortality rate, male
                         'EN.ATM.NOXE.AG.KT.CE', # - Ag. no2 emissions
                         'SP.DYN.LE00.IN',       # - Life expectancy
                         'SP.DYN.LE00.FE.IN',    # - Life expectancy, female
-                        'SP.URB.GROW'}          # - Urban population growth
+                        'SP.URB.GROW']          # - Urban population growth
 
 
 def iso_dict(start = '2000', stop = '2015'):
-    df = pd.read_csv('C:/Users/Sean/Documents/Thesis/migration/data/world_bank/WDIData.csv')
+    df = pd.read_csv('C:/Users/Sean/Documents/MATH_498/data/world_bank/WDIData.csv')
     country_codes = set(gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))['iso_a3'])
     groups = df.groupby('Country Code')
     iso_d = {}
@@ -75,7 +95,6 @@ def iso_dict(start = '2000', stop = '2015'):
             group_df = group_df.set_index('Indicator Code')
             smooth_data(group_df, start, stop)
             iso_d[code] = group_df.loc[:, start: stop]
-            iso_d[code].loc['SP.POP.TOTL.NX'] = group_df.loc['SP.POP.TOTL', str(int(start) + 1): str(int(stop) + 1)]
     return iso_d
 
 def smooth_data(df, start = '2000', stop = '2015'):
@@ -94,15 +113,16 @@ def smooth_data(df, start = '2000', stop = '2015'):
                 else:
                     df.loc[row, str(j)] = tot / n
 
-def select_features(iso_d, feats):
+def select_features(iso_d, feats, start, stop):
+    start, stop = int(start), int(stop)
     iso_codes = []
     years = []
     data = []
     for key, df in sorted(iso_d.items()):
-        for yr in df.columns:
+        for yr in range(start, stop + 1):
             iso_codes.append(key)
-            years.append(yr)
-            data.append(df.loc[feats, yr])
+            years.append(str(yr))
+            data.append(df.loc[feats, str(yr)])
     return pd.DataFrame(data, index = [iso_codes, years], columns = feats)
 
 def find_features(iso_d, exclude = None):
@@ -122,20 +142,16 @@ def fill_nas(iso_df):
     return iso_df.fillna(iso_df.mean(axis = 0))
 
 def main():
-    iso_dfs = iso_dict('2000', '2017')
+    iso_dfs = iso_dict('1980', '2017')
     print(len(iso_dfs))
-    target_feats = TARGET_FEATS
-    targets = select_features(iso_dfs, target_feats)
+    all_feats = NECESSARY_FEATS
+    #all_feats = TARGET_FEATS + FEATURES + CONSISTENT_2000_2015
+    targets = select_features(iso_dfs, all_feats, '1981', '2017')
     filled_targets = fill_nas(targets)
-    if DISCOVER_FEATS:
-        feats = find_features(iso_dfs, exclude = target_feats)
-        print(feats)
-    else:
-        feats = FEATURES | CONSISTENT_2000_2015
-    features = select_features(iso_dfs, feats)
+    features = select_features(iso_dfs, all_feats, '1980', '2016')
     filled_features = fill_nas(features)
-    filled_targets.to_pickle('simple_targets.pkl')
-    filled_features.to_pickle('simple_features.pkl')
+    filled_targets.to_pickle('complex_targets_20.pkl')
+    filled_features.to_pickle('complex_features_20.pkl')
     print(filled_targets)
     print(filled_features)
 
