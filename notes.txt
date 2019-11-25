@@ -1,0 +1,21 @@
+# Model to map features Fn to Fn+1 %Done
+# Look at model features and how it is viewing their importance %Done
+# More literature review %In progress
+
+# Look at model predictions starting at 2000 - 2017, plotting real data % Uggh - Done
+# Look at the submaps in the neural network, seeing if the intial conditions match
+# See if my data preprocessing might be causing initial fluctuations % Uggh - It certainly is. Smoothing round 2?
+# Try clustering to see how predictions correlate with observed values for specific countries % Done - 3 or 4 clusters prime
+# Disect network output using other learning techniques on the simulated output data
+# Look at birth and death rates % Done - fits birth rates really well.
+# Look at differences between the 44 and 20 feature models % No clear reason to choose 44 over 20. Similar results are achieved with the 20 model.
+# PCA on correlation outputs % Meh
+
+# Plot on the world map % Done
+# Look at model resets after every 5 years % Done
+# Now look at where people go % Will do - next semester or maybe later this semester
+# Smooth migrations % Done
+# Papers for population modeling
+# Look at first layer weights to see which positions it looks at % Done
+# Look at features distributions in inputs and outputs to assess variability
+# Summary of what works and what doesn't

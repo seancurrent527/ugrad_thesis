@@ -8,27 +8,41 @@ import pandas as pd
 import keras.backend as K
 from keras.models import Model
 from keras.regularizers import l1
-from keras.layers import Dense, Input, Concatenate, Dropout
+from keras.layers import Dense, Input, Concatenate, Dropout, Lambda
 from sklearn.preprocessing import MinMaxScaler
 
 def _parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--type', type = str, default = 'complex')
-    parser.add_argument('-f', '--function-model', type = str, default = 'model_network')
     return parser.parse_args()
 
-def model_network(input_shape):
+def sub_network(input_shape):
     xin = Input(input_shape)
     xhid1 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xin)
     xhid1 = Dropout(0.5)(xhid1)
-    xhid1 = Concatenate()([xin, xhid1])
-    xhid2 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xhid1)
-    xhid2 = Dropout(0.5)(xhid2)
-    xhid2 = Concatenate()([xhid1, xhid2])
-    xhid3 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xhid2)
-    xhid3 = Dropout(0.5)(xhid3)
-    xhid3 = Concatenate()([xhid2, xhid3])
-    xout = Dense(input_shape[0])(xhid3)
+    xhid2 = Concatenate()([xin, xhid1])
+    xout = Dense(input_shape[0])(xhid2)
+
+    xhid3 = Concatenate()([xout, xhid2])
+    corr = Dense(input_shape[0], activation = 'tanh')(xhid3)
+    
+    xout = Lambda(lambda x: x[0] * x[1])([xout, corr])
+    return Model(xin, xout)
+
+def model_network(input_shape, wrap = 3):
+    xin = Input(input_shape)
+    subnet = sub_network(input_shape)
+    xhid = xin
+    outs = []
+
+    for _ in range(wrap):
+        xhid = subnet(xhid)
+        outs.append(xhid)
+    
+    if len(outs) > 1:
+        xout = Concatenate()(outs)
+    else:
+        xout = outs[0]
     return Model(xin, xout)
 
 def get_model(fname, input_shape):

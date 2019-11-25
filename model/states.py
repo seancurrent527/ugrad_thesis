@@ -28,15 +28,15 @@ class State:
         #self.features['SP.POP.TOTL'] = self.population
         #self.features['EN.POP.DNST'] = self.population / self.features['AG.LND.TOTL.K2']
         if State.network:
-            adjusted = State.network.predict(State.xScaler.transform(State.to_X_array([self])))
-            adjusted = State.yScaler.inverse_transform(adjusted)
-            self.migrants, self.deaths, self.births = adjusted[0][0:3]
-            self.features.values[:] = adjusted[0][:len(self.features)]
+            adjusted = State.network.predict(State.scaler.transform(State.to_X_array([self])))
+            adjusted = State.scaler.inverse_transform(adjusted[:,:20])
+            self.migrants, self.deaths, self.births = adjusted[0, 0:3]
+            self.features.values[:] = adjusted[0]
 
     @classmethod
     def from_countries_of_the_world(cls):
-        features = pd.read_pickle('complex_features_20.pkl')
-        targets = pd.read_pickle('complex_targets_20.pkl')
+        features = pd.read_pickle('complex_features.pkl')
+        targets = pd.read_pickle('complex_targets.pkl')
         states = defaultdict(list)
         for name, year in features.index:
             st = cls(name, year, targets = targets.loc[(name, str(int(year) + 1)), :], features = features.loc[(name, year), :])

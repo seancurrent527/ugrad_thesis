@@ -113,6 +113,18 @@ def smooth_data(df, start = '2000', stop = '2015'):
                 else:
                     df.loc[row, str(j)] = tot / n
 
+def smooth_column(df, feature):
+    col = df[feature]
+    jump = len(df.loc['USA', :])
+    for i in range(len(col) // jump):
+        base = i * jump
+        new_values = []
+        smoother = lambda c, i: c.iloc[i - 1: i + 2].sum() / 3
+        for j in range(1, jump - 1):
+            j = j + base
+            new_values.append(smoother(col, j))
+        col.iloc[base + 1: base + 1 + len(new_values)] = new_values
+
 def select_features(iso_d, feats, start, stop):
     start, stop = int(start), int(stop)
     iso_codes = []
@@ -142,16 +154,19 @@ def fill_nas(iso_df):
     return iso_df.fillna(iso_df.mean(axis = 0))
 
 def main():
-    iso_dfs = iso_dict('1980', '2017')
+    iso_dfs = iso_dict('2000', '2017')
     print(len(iso_dfs))
     all_feats = NECESSARY_FEATS
     #all_feats = TARGET_FEATS + FEATURES + CONSISTENT_2000_2015
-    targets = select_features(iso_dfs, all_feats, '1981', '2017')
+    targets = select_features(iso_dfs, all_feats, '2001', '2017')
     filled_targets = fill_nas(targets)
-    features = select_features(iso_dfs, all_feats, '1980', '2016')
+    features = select_features(iso_dfs, all_feats, '2000', '2016')
     filled_features = fill_nas(features)
-    filled_targets.to_pickle('complex_targets_20.pkl')
-    filled_features.to_pickle('complex_features_20.pkl')
+    smooth_us = ['SM.POP.NETM']
+    smooth_column(filled_targets, smooth_us[0])
+    smooth_column(filled_features, smooth_us[0])
+    filled_targets.to_pickle('complex_targets.pkl')
+    filled_features.to_pickle('complex_features.pkl')
     print(filled_targets)
     print(filled_features)
 

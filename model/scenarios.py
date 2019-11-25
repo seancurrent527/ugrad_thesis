@@ -30,17 +30,16 @@ class Scenario:
         Xdev = np.vstack([State.to_X_array(self.states[yr])[~training_states] for yr in self.dev_years])
         y = np.vstack([State.to_y_array(self.states[yr])[training_states] for yr in self.train_years])
         ydev = np.vstack([State.to_y_array(self.states[yr])[~training_states] for yr in self.dev_years])
-        xScaler, yScaler = MinMaxScaler(), MinMaxScaler()
+        scaler = MinMaxScaler()
         print(X.shape, y.shape)
         self.network.compile(**compile_args)
+        X = scaler.fit_transform(X)
+        Xdev = scaler.transform(Xdev)
+        y = scaler.transform(y)
+        ydev = scaler.transform(ydev)
+        self.scaler = State.scaler = scaler
         X, y = wrap_years(X, y, training_states.sum(), wrap = wrap)
         Xdev, ydev = wrap_years(Xdev, ydev, (~training_states).sum(), wrap = wrap)
-        X = xScaler.fit_transform(X)
-        Xdev = xScaler.transform(Xdev)
-        y = yScaler.fit_transform(y)
-        ydev = yScaler.transform(ydev)
-        self.xScaler = State.xScaler = xScaler
-        self.yScaler = State.yScaler = yScaler
         if noise:
             X, y = noisier(X, y, degree = 0.05, samples = noise)
         self.network.fit(X, y, validation_data = (Xdev, ydev), **fit_args)
