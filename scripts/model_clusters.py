@@ -14,6 +14,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import KernelDensity
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+from sklearn.cluster import OPTICS
 from mpl_toolkits.mplot3d import Axes3D
 
 TABS = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
@@ -90,21 +91,46 @@ def main():
     b_corr = correlate_countries(year_data_b, b_targs)
     corr_vecs = correlation_vectors([p_corr, m_corr, d_corr, b_corr])
     print(corr_vecs)
-    corr_vecs = corr_vecs.dropna()
-    clusters, labels = cluster_me(corr_vecs, k = 4) # k = 3 is consistently good, k = 4 is sometimes more revealing but noisier
-    for l in sorted(set(labels)):
-        print(TABS[l][4:], ':', corr_vecs.index[labels == l])
-    plot_me(corr_vecs, labels)
+    corr_vecs = corr_vecs.fillna(0)
 
+    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+    world.index = world['iso_a3']
+    world[['p_corr', 'm_corr', 'd_corr', 'b_corr']] = corr_vecs[['p', 'm', 'd', 'b']]
+    fig = plt.figure(figsize = (10,6))
+    ax = plt.subplot(221)
+    world.plot('p_corr', cmap = 'RdBu', ax=ax)
+    ax.set_title('Population corr')
+    ax = plt.subplot(222)
+    world.plot('m_corr', cmap = 'RdBu', ax=ax)
+    ax.set_title('Migration corr')
+    ax = plt.subplot(223)
+    world.plot('d_corr', cmap = 'RdBu', ax=ax)
+    ax.set_title('Death Rate corr')
+    ax = plt.subplot(224)
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+    world.plot('b_corr', legend=True, cmap = 'RdBu', ax=ax, cax = cbar_ax)
+    ax.set_title('Birth Rate corr')
+    plt.show()
+    '''
+    clust = OPTICS()
+    clust.fit(corr_vecs.values)
+    reachability = clust.reachability_[clust.ordering_]
+    plt.plot(reachability, color = 'black', linestyle = '', marker = '.')
+    plt.show()
+    #clusters, labels = cluster_me(corr_vecs, k = 4) # k = 3 is consistently good, k = 4 is sometimes more revealing but noisier
+    #for l in sorted(set(labels)):
+     #   print(TABS[l][4:], ':', corr_vecs.index[labels == l])
+    #plot_me(corr_vecs, labels)
    
-    for _ in range(1):
+    for _ in range(0):
         tsne = TSNE(1)
         transformedt = tsne.fit_transform(corr_vecs.values)
         pca = PCA(1)
         transformed = pca.fit_transform(corr_vecs.values)
         samp = np.linspace(transformed.min() - 5, transformed.max() + 5, 1000)
         sampt = np.linspace(transformed.min() - 5, transformed.max() + 5, 1000)
-        '''
+        
         fig = plt.figure(figsize=(8,8))
         ax = fig.add_subplot(111, projection='3d')
         ax.scatter(transformed[:, 0], transformed[:, 1], transformed[:, 2], marker = '.', color = 'black')
@@ -113,7 +139,7 @@ def main():
         plt.show()
         plt.hist(transformedt, color = 'black', bins = 40)
         plt.show()
-        '''
+        
         #plt.plot(transformed, marker = '.', color = 'black', linestyle = '')
         #plt.title('PCA')
         #plt.show()
@@ -127,7 +153,7 @@ def main():
         plt.plot(sampt, np.exp(est_density(transformedt, sampt)))
         plt.title('tsne')
         plt.show()
-
+    '''
 
 if __name__ == '__main__':
     main()

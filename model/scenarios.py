@@ -56,18 +56,23 @@ class Scenario:
         print(*[pop.deaths for pop in self._running], sep = ',', file = self.doutfile)
         print(*[pop.births for pop in self._running], sep = ',', file = self.boutfile)
 
-    def run(self, year = '2000', timesteps = 100):
+    def run(self, year = '2000', timesteps = 100, reset_period = None):
         self._running = self.states[year]
-        self.poutfile = open('generated_data/' + year + '_' + self.name + '_p_out.csv', 'w')
-        self.moutfile = open('generated_data/' + year + '_' + self.name + '_m_out.csv', 'w')
-        self.doutfile = open('generated_data/' + year + '_' + self.name + '_d_out.csv', 'w')
-        self.boutfile = open('generated_data/' + year + '_' + self.name + '_b_out.csv', 'w')
+        separator = '_' if reset_period is None else '_with_resets_'
+        self.poutfile = open('generated_data/' + year + separator + self.name + '_p_out.csv', 'w')
+        self.moutfile = open('generated_data/' + year + separator + self.name + '_m_out.csv', 'w')
+        self.doutfile = open('generated_data/' + year + separator + self.name + '_d_out.csv', 'w')
+        self.boutfile = open('generated_data/' + year + separator + self.name + '_b_out.csv', 'w')
         print(*[pop.name for pop in self._running], sep = ',', file = self.poutfile)
         print(*[pop.name for pop in self._running], sep = ',', file = self.moutfile)
         print(*[pop.name for pop in self._running], sep = ',', file = self.doutfile)
         print(*[pop.name for pop in self._running], sep = ',', file = self.boutfile)
         self.write_out()
         for t in tqdm(range(timesteps)):
+            if reset_period and ((int(year) + t) % reset_period) == 0:
+                self._running = self.states[str(int(year) + t + 1)]
+                self.write_out()
+                continue
             for pop in self._running:
                 pop.timestep()
                 pop.recalculate()
@@ -78,4 +83,6 @@ class Scenario:
             for i, pop in enumerate(self._running):
                 if pop.migrants > 0:
                     pop.migrants = acceptors[i] * moving
+            
+
             self.write_out()

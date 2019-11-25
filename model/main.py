@@ -28,9 +28,8 @@ def sub_network(input_shape):
 
     xhid4 = Concatenate()([xout, xhid3])
     corr = Dense(input_shape[0], activation = 'tanh')(xhid4)
-    scale = Dense(input_shape[0], activation = 'relu')(xhid4)
     
-    xout = Lambda(lambda x: x[0] * x[1] * x[2])([xout, corr, scale])
+    xout = Lambda(lambda x: x[0] * x[1])([xout, corr])
     return Model(xin, xout)
 
 def model_network(input_shape, wrap = 3):
@@ -49,8 +48,8 @@ def model_network(input_shape, wrap = 3):
         xout = outs[0]
     return Model(xin, xout)
 
-def weighted_mae(y_true, y_pred, weight = 1):
-    weights = np.ones((80,))
+def weighted_mae(y_true, y_pred, weight = 1, wrap = 3):
+    weights = np.ones((20 * wrap,))
     weights[:4] *= weight
     weights = K.constant(weights)
     mae = K.abs(y_true - y_pred)
@@ -68,7 +67,7 @@ def correlation_loss(y_true, y_pred):
     return 1 - r
 
 def main():
-    wrap = 4
+    wrap = 3
     train_years = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013']
     dev_years = ['2011', '2012', '2013', '2014', '2015', '2016']
     test_years = ['2014', '2015', '2016']
@@ -76,10 +75,11 @@ def main():
     inshape, _ = scene.data_shape
     model = model_network(inshape, wrap = wrap)
     # Work on the loss function
-    compile_args = dict(metrics = [r2_keras, r2_population, correlation_loss], loss=lambda x, y: weighted_mae(x, y), optimizer = Adam(lr = 0.0001))
+    compile_args = dict(metrics = [r2_keras, r2_population], loss=lambda x, y: weighted_mae(x, y, wrap = wrap), optimizer = Adam(lr = 0.0001))
     fit_args = dict(epochs = 300, batch_size = 64, callbacks = [TensorBoard(log_dir='.\\logs', histogram_freq=5), EarlyStopping(patience=15, restore_best_weights=True)])
     scene.set_network(model, compile_args, fit_args, noise = 10000, wrap = wrap)
     scene.run(year = '2000', timesteps=20)
+    scene.run(year = '2000', timesteps=20, reset_period = 5)
     for year in test_years:
         scene.run(year = year, timesteps=20)
     scene.network.save_weights('multiyear_weights.h5')
