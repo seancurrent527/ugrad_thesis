@@ -1,10 +1,11 @@
 '''
 Functional utilities for scenarios and network training.
 '''
-import numpy as np, random
+import numpy as np, pandas as pd, random
 import keras.backend as K
 from keras.layers import Layer
 from keras import initializers, regularizers, constraints, activations, losses
+import geopandas as gpd
 
 class ConCurrent(Layer):
     def __init__(self, units, repeats,
@@ -110,3 +111,32 @@ def wrap_years(X, y, num_countries, wrap):
     new_X = np.concatenate(concat_new_X, axis = 0)
     new_y = np.concatenate(concat_new_y, axis = 0)
     return new_X, new_y
+
+def get_world():
+    world = gpd.read_file('C:/Users/Sean/Documents/MATH_498/data/map/ne_110m_admin_0_countries.shp')
+    fix = {'Norway': 'NOR', 'France': 'FRA', 'N. Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
+    for row in world.index:
+        if world.loc[row, 'name'] in fix:
+            world.loc[row, 'iso_a3'] = fix[world.loc[row, 'name']]
+    return world
+
+def distance_matrix(distance_file, iso_file):
+    distance_matrix = pd.read_csv(distance_file, index_col=0, keep_default_na=False, na_values=[])
+    iso_matrix = pd.read_csv(iso_file, skiprows=[0], header = None, names = ['index', 'country', 'iso2', 'iso3'])
+    two_to_three = pd.Series(iso_matrix['iso3'].values, iso_matrix['iso2'])
+    two_to_three['SD'] = 'SDN'
+    two_to_three['SS'] = 'SSD'
+    two_to_three['NA'] = 'NAM'
+    two_to_three['XK'] = 'RKS'
+    three_codes = []
+    errors = ['GZ']#, 'XK']
+    distance_matrix = distance_matrix.drop(labels = errors, axis = 1)
+    distance_matrix = distance_matrix.drop(labels = errors, axis = 0)
+    for c in distance_matrix.index:
+        try:
+            three_codes.append(two_to_three[c])
+        except:
+            print(c)
+    distance_matrix.index = three_codes
+    distance_matrix.columns = three_codes
+    return distance_matrix

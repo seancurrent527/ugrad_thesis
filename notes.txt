@@ -1,6 +1,6 @@
 # Model to map features Fn to Fn+1 %Done
 # Look at model features and how it is viewing their importance %Done
-# More literature review %In progress
+# More literature review %Done
 
 # Look at model predictions starting at 2000 - 2017, plotting real data % Uggh - Done
 # Look at the submaps in the neural network, seeing if the intial conditions match
@@ -15,7 +15,9 @@
 # Look at model resets after every 5 years % Done
 # Now look at where people go % Will do - next semester or maybe later this semester
 # Smooth migrations % Done
-# Papers for population modeling
+# Papers for population modeling % Done
 # Look at first layer weights to see which positions it looks at % Done
 # Look at features distributions in inputs and outputs to assess variability
 # Summary of what works and what doesn't
+
+# LOG SCALE FOR BETTER DISTRIBUTIONS!!!

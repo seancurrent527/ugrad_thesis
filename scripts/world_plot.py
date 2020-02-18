@@ -37,8 +37,8 @@ def main():
     args = _parse_args()
     world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
     years = ['2014', '2015', '2016']
-    year_data_p = [pd.read_csv('generated_data/' + yr + '_' + args.type + '_p_out.csv') for yr in years]
-    year_data_m = [pd.read_csv('generated_data/' + yr + '_' + args.type + '_m_out.csv') for yr in years]
+    year_data_p = [pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + yr + '_' + args.type + '_p_out.csv') for yr in years]
+    year_data_m = [pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + yr + '_' + args.type + '_m_out.csv') for yr in years]
     duration = len(year_data_p[0])
     for i in range(len(years)):
         yr = int(years[i])

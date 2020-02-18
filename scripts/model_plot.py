@@ -71,8 +71,6 @@ def test_effects(model, feats, targets):
     feats.values[:] = scaler.fit_transform(feats.values)
     targets.values[:] = scaler.transform(targets)
     predictions = model.predict(feats.values)
-    #print(targets)
-    #print(predictions)
     print("ALL : Population R2 -", r2_population(targets.values, predictions))
     for index in feats.columns:
         cfeats = feats.copy()
@@ -80,18 +78,14 @@ def test_effects(model, feats, targets):
         cfeats[index].values[:] = np.random.rand(len(feats))
         ctargets[index].values[:] = np.random.rand(len(feats))
         predictions = model.predict(cfeats.values)
-        #print(ctargets)
-        #print(predictions)
         print(f"{index} : Population R2 -", r2_population(ctargets.values, predictions))
 
-def plot_2000(targs, preds):
-    training_states = np.random.binomial(1, 0.75, size = (167,)).astype(bool)
-    training_targs = targs.iloc[:, training_states]
-    training_preds = preds.iloc[1:, training_states]
-    testing_targs = targs.iloc[:, ~training_states]
-    testing_preds = preds.iloc[1:, ~training_states]
-    for i in range(len(testing_targs.columns) // 16 + 1):
-        fig = plt.figure(figsize=(8,8))
+def plot_2000(targs, preds, countries):
+    testing_states = [c in countries for c in preds.columns]
+    testing_targs = targs.iloc[:, testing_states]
+    testing_preds = preds.iloc[1:, testing_states]
+    for i in range(len(testing_targs.columns) // 16 + (len(testing_targs.columns) > 16)):
+        fig = plt.figure(figsize=(8,8), frameon=False)
         cut = i * 16
         t, p = testing_targs.iloc[:, cut:cut + 16], testing_preds.iloc[:, cut:cut + 16]  
         for j in range(16):
@@ -105,15 +99,19 @@ def plot_2000(targs, preds):
         plt.tight_layout()
         plt.show()
 
+def get_world():
+    world = gpd.read_file('C:/Users/Sean/Documents/MATH_498/data/map/ne_110m_admin_0_countries.shp')
+    return world
+
 def main():
     args = _parse_args()
-    feats = pd.read_pickle('complex_features.pkl')
-    targets = pd.read_pickle('complex_targets.pkl')
-    model = get_model('complex_weights.h5', (len(feats.columns),))
-    year_data_p = pd.read_csv('generated_data/2000_' + args.type + '_p_out.csv')
-    year_data_m = pd.read_csv('generated_data/2000_' + args.type + '_m_out.csv')
-    year_data_d = pd.read_csv('generated_data/2000_' + args.type + '_d_out.csv')
-    year_data_b = pd.read_csv('generated_data/2000_' + args.type + '_b_out.csv')
+    feats = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_features.pkl')
+    targets = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_targets.pkl')
+    model = get_model('C:/Users/Sean/Documents/MATH_498/code/complex_weights.h5', (len(feats.columns),))
+    year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_p_out.csv')
+    year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_m_out.csv')
+    year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_d_out.csv')
+    year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_b_out.csv')
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
     m_targs = pd.DataFrame(data = np.array([df['SM.POP.NETM'].values for _, df in targets.groupby(level = 0)]).T,
@@ -123,14 +121,16 @@ def main():
     b_targs = pd.DataFrame(data = np.array([df['SP.DYN.CBRT.IN'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_b.columns)
     #test_effects(model, feats, targets)
+    countries = ['AUS', 'USA', 'RUS', 'CAN', 'AFG', 'BRA', 'DEU', 'FRA',
+                 'GBR', 'CHN', 'IND', 'ARE', 'SAU', 'MEX', 'ESP', 'CHE']
     np.random.seed(147)
-    plot_2000(p_targs, year_data_p)
+    plot_2000(p_targs, year_data_p, countries)
     np.random.seed(147)
-    plot_2000(m_targs, year_data_m)
+    plot_2000(m_targs, year_data_m, countries)
     np.random.seed(147)
-    plot_2000(d_targs, year_data_d)
+    plot_2000(d_targs, year_data_d, countries)
     np.random.seed(147)
-    plot_2000(b_targs, year_data_b)
+    plot_2000(b_targs, year_data_b, countries)
 
 
 

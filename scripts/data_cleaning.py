@@ -9,26 +9,26 @@ DISCOVER_FEATS = False
 
 TARGET_FEATS = ['SM.POP.NETM', 'SP.DYN.CDRT.IN', 'SP.DYN.CBRT.IN', 'SP.POP.TOTL']
 
-NECESSARY_FEATS = ['SM.POP.NETM',
-                   'SP.DYN.CDRT.IN',
-                   'SP.DYN.CBRT.IN',
-                   'SP.POP.TOTL',
-                   'SP.POP.DPND',
-                   'VC.BTL.DETH',
-                   'SL.TLF.TOTL.IN',
-                   'MS.MIL.XPND.GD.ZS',
-                   'EN.POP.DNST',
-                   'SP.DYN.LE00.MA.IN',
-                   'SP.RUR.TOTL.ZS',
-                   'SP.URB.TOTL.IN.ZS',
-                   'SP.URB.TOTL',
-                   'SP.RUR.TOTL',
-                   'EN.ATM.METH.AG.KT.CE',
-                   'SP.DYN.AMRT.FE',
-                   'SP.RUR.TOTL.ZG',
-                   'SP.DYN.TFRT.IN',
-                   'EN.ATM.NOXE.AG.KT.CE',
-                   'SP.DYN.LE00.IN']
+NECESSARY_FEATS = ['SM.POP.NETM',           #0
+                   'SP.DYN.CDRT.IN',        #1
+                   'SP.DYN.CBRT.IN',        #2
+                   'SP.POP.TOTL',           #3
+                   'SP.POP.DPND',           #4
+                   'VC.BTL.DETH',           #5
+                   'SL.TLF.TOTL.IN',        #6
+                   'MS.MIL.XPND.GD.ZS',     #7
+                   'EN.POP.DNST',           #8
+                   'SP.DYN.LE00.MA.IN',     #9
+                   'SP.RUR.TOTL.ZS',        #10
+                   'SP.URB.TOTL.IN.ZS',     #11
+                   'SP.URB.TOTL',           #12
+                   'SP.RUR.TOTL',           #13
+                   'EN.ATM.METH.AG.KT.CE',  #14
+                   'SP.DYN.AMRT.FE',        #15
+                   'SP.RUR.TOTL.ZG',        #16
+                   'SP.DYN.TFRT.IN',        #17
+                   'EN.ATM.NOXE.AG.KT.CE',  #18
+                   'SP.DYN.LE00.IN']        #19
 
 FEATURES = ['EG.ELC.ACCS.ZS',       # - access to electricity (also has rural/urban)
             'SE.PRM.TENR',          # - percent enrolled primary education
@@ -84,10 +84,17 @@ CONSISTENT_2000_2015 = ['SP.DYN.AMRT.MA',       # - Mortality rate, male
                         'SP.DYN.LE00.FE.IN',    # - Life expectancy, female
                         'SP.URB.GROW']          # - Urban population growth
 
+def get_world():
+    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+    fix = {'Norway': 'NOR', 'France': 'FRA', 'N. Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
+    for row in world.index:
+        if world.loc[row, 'name'] in fix:
+            world.loc[row, 'iso_a3'] = fix[world.loc[row, 'name']]
+    return world
 
 def iso_dict(start = '2000', stop = '2015'):
     df = pd.read_csv('C:/Users/Sean/Documents/MATH_498/data/world_bank/WDIData.csv')
-    country_codes = set(gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))['iso_a3'])
+    country_codes = set(get_world()['iso_a3']) - set(('SSD',))
     groups = df.groupby('Country Code')
     iso_d = {}
     for code, group_df in tqdm(groups):
@@ -153,6 +160,7 @@ def fill_nas(iso_df):
     iso_df = iso_df.groupby(level = 0).backfill()
     return iso_df.fillna(iso_df.mean(axis = 0))
 
+#=========================================================================
 def main():
     iso_dfs = iso_dict('2000', '2017')
     print(len(iso_dfs))
@@ -165,8 +173,10 @@ def main():
     smooth_us = ['SM.POP.NETM']
     smooth_column(filled_targets, smooth_us[0])
     smooth_column(filled_features, smooth_us[0])
-    filled_targets.to_pickle('complex_targets.pkl')
-    filled_features.to_pickle('complex_features.pkl')
+    filled_targets['SM.POP.NETM'] = filled_targets['SM.POP.NETM'] / filled_targets['SP.POP.TOTL'] * 1000 #Turn Net Migration into a ratio
+    filled_features['SM.POP.NETM'] = filled_features['SM.POP.NETM'] / filled_features['SP.POP.TOTL'] * 1000 #Turn Net Migration into a ratio
+    filled_targets.to_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_targets.pkl')
+    filled_features.to_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_features.pkl')
     print(filled_targets)
     print(filled_features)
 

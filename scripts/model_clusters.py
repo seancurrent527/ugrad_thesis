@@ -9,13 +9,14 @@ import keras.backend as K
 from keras.models import Model
 from keras.regularizers import l1
 from keras.layers import Dense, Input, Concatenate, Dropout
-from scipy.stats.stats import pearsonr
+from scipy.stats.stats import pearsonr, spearmanr
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import KernelDensity
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 from sklearn.cluster import OPTICS
 from mpl_toolkits.mplot3d import Axes3D
+from model_plot import get_world
 
 TABS = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
 
@@ -28,9 +29,10 @@ def correlate_countries(predictiondf, targetdf, duration = 10):
     # Columns: Countries
     # Rows   : Years
     preds, targs = predictiondf.iloc[:duration], targetdf.iloc[:duration]
-    corrs = pd.Series([pearsonr(preds[country].values, targs[country].values)[0] for country in targs.columns], targs.columns)
-    #corrs = corrs / corrs.max()
-    return corrs
+    corrs = pd.Series([spearmanr(preds[country].values, targs[country].values)[0] for country in targs.columns], targs.columns)
+    #mae = pd.Series([abs(preds[country].values - targs[country].values).mean() for country in targs.columns], targs.columns)
+    #mape = pd.Series([np.mean(np.abs((preds[country].values - targs[country].values) / targs[country].values)) for country in targs.columns], targs.columns)
+    return corrs ** 2
 
 def correlation_vectors(corr_results):
     df = pd.concat(corr_results, axis = 1)
@@ -72,11 +74,11 @@ def est_density(arr, sample):
 
 def main():
     args = _parse_args()
-    targets = pd.read_pickle('complex_targets.pkl')
-    year_data_p = pd.read_csv('generated_data/2000_' + args.type + '_p_out.csv')
-    year_data_m = pd.read_csv('generated_data/2000_' + args.type + '_m_out.csv')
-    year_data_d = pd.read_csv('generated_data/2000_' + args.type + '_d_out.csv')
-    year_data_b = pd.read_csv('generated_data/2000_' + args.type + '_b_out.csv')
+    targets = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_targets.pkl')
+    year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_p_out.csv')
+    year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_m_out.csv')
+    year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_d_out.csv')
+    year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_b_out.csv')
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
     m_targs = pd.DataFrame(data = np.array([df['SM.POP.NETM'].values for _, df in targets.groupby(level = 0)]).T,
@@ -93,24 +95,24 @@ def main():
     print(corr_vecs)
     corr_vecs = corr_vecs.fillna(0)
 
-    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-    world.index = world['iso_a3']
+    world = get_world()
+    world.index = world['ISO_A3']
     world[['p_corr', 'm_corr', 'd_corr', 'b_corr']] = corr_vecs[['p', 'm', 'd', 'b']]
     fig = plt.figure(figsize = (10,6))
     ax = plt.subplot(221)
     world.plot('p_corr', cmap = 'RdBu', ax=ax)
-    ax.set_title('Population corr')
+    ax.set_title('Population $R^{2}$')
     ax = plt.subplot(222)
     world.plot('m_corr', cmap = 'RdBu', ax=ax)
-    ax.set_title('Migration corr')
+    ax.set_title('Migration $R^{2}$')
     ax = plt.subplot(223)
     world.plot('d_corr', cmap = 'RdBu', ax=ax)
-    ax.set_title('Death Rate corr')
+    ax.set_title('Death Rate $R^{2}$')
     ax = plt.subplot(224)
     fig.subplots_adjust(right=0.8)
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     world.plot('b_corr', legend=True, cmap = 'RdBu', ax=ax, cax = cbar_ax)
-    ax.set_title('Birth Rate corr')
+    ax.set_title('Birth Rate $R^{2}$')
     plt.show()
     '''
     clust = OPTICS()
