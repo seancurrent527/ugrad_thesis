@@ -106,7 +106,7 @@ def wrap_years(X, y, num_countries, wrap):
     concat_new_X = []
     concat_new_y = []
     for i in range(len(year_arrays) - wrap):
-        concat_new_y.append(np.concatenate(year_arrays[i : i + wrap], axis = -1))
+        concat_new_y.append(np.concatenate(year_arrays[i: i + wrap], axis = -1))
         concat_new_X.append(X[i * num_countries: (i + 1) * num_countries])
     new_X = np.concatenate(concat_new_X, axis = 0)
     new_y = np.concatenate(concat_new_y, axis = 0)
@@ -114,10 +114,10 @@ def wrap_years(X, y, num_countries, wrap):
 
 def get_world():
     world = gpd.read_file('C:/Users/Sean/Documents/MATH_498/data/map/ne_110m_admin_0_countries.shp')
-    fix = {'Norway': 'NOR', 'France': 'FRA', 'N. Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
+    fix = {'Norway': 'NOR', 'France': 'FRA', 'Northern Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
     for row in world.index:
-        if world.loc[row, 'name'] in fix:
-            world.loc[row, 'iso_a3'] = fix[world.loc[row, 'name']]
+        if world.loc[row, 'NAME_LONG'] in fix:
+            world.loc[row, 'ISO_A3'] = fix[world.loc[row, 'NAME_LONG']]
     return world
 
 def distance_matrix(distance_file, iso_file):

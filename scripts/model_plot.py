@@ -10,45 +10,12 @@ from keras.models import Model
 from keras.regularizers import l1
 from keras.layers import Dense, Input, Concatenate, Dropout, Lambda
 from sklearn.preprocessing import MinMaxScaler
+from models import get_model
 
 def _parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--type', type = str, default = 'complex')
+    parser.add_argument('-s', '--state_model', action='store_true')
     return parser.parse_args()
-
-def sub_network(input_shape):
-    xin = Input(input_shape)
-    xhid1 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xin)
-    xhid1 = Dropout(0.5)(xhid1)
-    xhid2 = Concatenate()([xin, xhid1])
-    xout = Dense(input_shape[0])(xhid2)
-
-    xhid3 = Concatenate()([xout, xhid2])
-    corr = Dense(input_shape[0], activation = 'tanh')(xhid3)
-    
-    xout = Lambda(lambda x: x[0] * x[1])([xout, corr])
-    return Model(xin, xout)
-
-def model_network(input_shape, wrap = 3):
-    xin = Input(input_shape)
-    subnet = sub_network(input_shape)
-    xhid = xin
-    outs = []
-
-    for _ in range(wrap):
-        xhid = subnet(xhid)
-        outs.append(xhid)
-    
-    if len(outs) > 1:
-        xout = Concatenate()(outs)
-    else:
-        xout = outs[0]
-    return Model(xin, xout)
-
-def get_model(fname, input_shape):
-    model = model_network(input_shape)
-    model.load_weights(fname)
-    return model
 
 def r2_keras(y_true, y_pred):
     SS_res =  K.sum(K.square(y_true - y_pred))
@@ -101,17 +68,21 @@ def plot_2000(targs, preds, countries):
 
 def get_world():
     world = gpd.read_file('C:/Users/Sean/Documents/MATH_498/data/map/ne_110m_admin_0_countries.shp')
+    fix = {'Norway': 'NOR', 'France': 'FRA', 'Northern Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
+    for row in world.index:
+        if world.loc[row, 'NAME_LONG'] in fix:
+            world.loc[row, 'ISO_A3'] = fix[world.loc[row, 'NAME_LONG']]
     return world
 
 def main():
     args = _parse_args()
-    feats = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_features.pkl')
-    targets = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_targets.pkl')
-    model = get_model('C:/Users/Sean/Documents/MATH_498/code/complex_weights.h5', (len(feats.columns),))
-    year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_p_out.csv')
-    year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_m_out.csv')
-    year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_d_out.csv')
-    year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_b_out.csv')
+    modtype = 'state' + ('less' * (1 - args.state_model))
+    feats = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/country_data.pkl')
+    year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_p_out.csv')
+    year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_m_out.csv')
+    year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_d_out.csv')
+    year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_b_out.csv')
+    targets = feats
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
     m_targs = pd.DataFrame(data = np.array([df['SM.POP.NETM'].values for _, df in targets.groupby(level = 0)]).T,
@@ -120,7 +91,6 @@ def main():
                            columns = year_data_d.columns)
     b_targs = pd.DataFrame(data = np.array([df['SP.DYN.CBRT.IN'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_b.columns)
-    #test_effects(model, feats, targets)
     countries = ['AUS', 'USA', 'RUS', 'CAN', 'AFG', 'BRA', 'DEU', 'FRA',
                  'GBR', 'CHN', 'IND', 'ARE', 'SAU', 'MEX', 'ESP', 'CHE']
     np.random.seed(147)

@@ -1,16 +1,16 @@
 '''
 Main module for migrant based population model.
 '''
-from keras.models import Model
 from utils import r2_keras, r2_population, ConCurrent, limit_loss, distance_matrix
 from scenarios import Scenario, constant_distribution, gravity_distribution
-from keras.layers import Dense, Input, Concatenate, Dropout, Lambda
+from models import get_model
+
 from keras.optimizers import Adam
-from keras.regularizers import l2, l1, l1_l2
 from keras.callbacks import TensorBoard, ReduceLROnPlateau, EarlyStopping
+import keras.backend as K
+
 import numpy as np, os
 import json, shutil
-import keras.backend as K
 import argparse
 
 np.random.seed(147)
@@ -19,42 +19,8 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--train', action='store_true', help='Whether or not to retrain the neural network.')
     parser.add_argument('-v', '--view', action='store_true', help='Whether or not to view the migration information.')
+    parser.add_argument('-s', '--state-model', action='store_true', help='Whether or not to use a state-based model for inference.')
     return parser.parse_args()
-
-def sub_network(input_shape):
-    xin = Input(input_shape)
-    xhid1 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xin)
-    xhid1 = Dropout(0.5)(xhid1)
-    xhid2 = Concatenate()([xin, xhid1])
-    xout = Dense(input_shape[0])(xhid2)
-
-    xhid3 = Concatenate()([xout, xhid2])
-    corr = Dense(input_shape[0], activation = 'tanh')(xhid3)
-    
-    xout = Lambda(lambda x: x[0] * x[1])([xout, corr])
-    return Model(xin, xout)
-
-def model_network(input_shape, wrap = 3):
-    xin = Input(input_shape)
-    subnet = sub_network(input_shape)
-    xhid = xin
-    outs = []
-
-    for _ in range(wrap):
-        xhid = subnet(xhid)
-        outs.append(xhid)
-    
-    if len(outs) > 1:
-        xout = Concatenate()(outs)
-    else:
-        xout = outs[0]
-    return Model(xin, xout)
-
-def get_model(fname, input_shape, wrap = 3, load = True):
-    model = model_network(input_shape, wrap = wrap)
-    if load:
-        model.load_weights(fname)
-    return model
 
 def weighted_mae(y_true, y_pred, weight = 1, wrap = 3):
     weights = np.ones((20 * wrap,))
@@ -80,22 +46,22 @@ def main():
     args = parse_args()
     wrap = 4
     train_years = ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013']
-    dev_years = ['2011', '2012', '2013', '2014', '2015', '2016']
-    test_years = ['2014', '2015', '2016']
+    dev_years = ['2011', '2012', '2013', '2014', '2015', '2016']#, '2017']
     dmat = distance_matrix('C:/Users/Sean/Documents/MATH_498/data/distance_matrix.txt',
                            'C:/Users/Sean/Documents/MATH_498/data/country_codes.csv')
-    scene = Scenario('complex', train_years = train_years, dev_years = dev_years, distance_matrix=dmat, mlimit = True)
-    inshape, _ = scene.data_shape
-    model = get_model('C:/Users/Sean/Documents/MATH_498/code/complex_weights.h5', (20,), wrap = wrap, load = not args.train)
+    modtype = 'state' + ('less' * (1 - args.state_model))
+    scene = Scenario(modtype, train_years = train_years, dev_years = dev_years, distance_matrix=dmat, mlimit = True)
+    model, inner = get_model('C:/Users/Sean/Documents/MATH_498/code/' + modtype + '_weights.h5', (20,), wrap = wrap, load = not args.train, state = args.state_model)
     # Work on the loss function
-    compile_args = dict(metrics = [r2_keras, r2_population], loss=lambda x, y: weighted_mae(x, y, wrap = wrap), optimizer = Adam(lr = 0.0001))
+    compile_args = dict(metrics = [r2_keras, r2_population], loss='mse', optimizer = Adam(lr = 0.0001))
     fit_args = dict(epochs = 100, batch_size = 64, callbacks = [TensorBoard(log_dir='.\\logs', histogram_freq=5), EarlyStopping(patience=15, restore_best_weights=True)])
     scene.set_network(model, compile_args, fit_args, noise = 10000, wrap = wrap, train = args.train)
-    scene.run(year = '2000', timesteps=20, movement_function=gravity_distribution, view=args.view)
+    state_model = inner if args.state_model else None
+    scene.run(year = '2000', timesteps=20, movement_function=gravity_distribution, view=args.view, state_model=state_model)
     model_json = scene.network.to_json()
-    with open("C:/Users/Sean/Documents/MATH_498/code/complex_model.json", "w") as json_file:
+    with open('C:/Users/Sean/Documents/MATH_498/code/' + modtype + '_model.json', "w") as json_file:
         json.dump(model_json, json_file)
-    scene.network.save_weights('C:/Users/Sean/Documents/MATH_498/code/complex_weights.h5')
+    scene.network.save_weights('C:/Users/Sean/Documents/MATH_498/code/' + modtype + '_weights.h5')
 
 if __name__ == '__main__':
     main()

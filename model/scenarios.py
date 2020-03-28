@@ -140,8 +140,14 @@ class Scenario:
         print(*[pop.deaths for pop in self._running], sep = ',', file = self.doutfile)
         print(*[pop.births for pop in self._running], sep = ',', file = self.boutfile)
 
-    def run(self, year = '2000', timesteps = 100, reset_period = None, movement_function = constant_distribution, mc = 1, view = True):
+    def run(self, year = '2000', timesteps = 100, reset_period = None, movement_function = constant_distribution, mc = 1, view = True, state_model = None, sub_states = None):
+        state = False
+        if state_model is not None:
+            state = True
+            State.state_network = state_model
         self._running = self.states[year]
+        if sub_states:
+            self._running = [state for state in self._running if state.name in sub_states]
         separator = '_' if reset_period is None else '_with_resets_'
         self.poutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_p_out.csv', 'w')
         self.moutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_m_out.csv', 'w')
@@ -158,7 +164,7 @@ class Scenario:
                 self.write_out()
                 continue
             for pop in self._running:
-                pop.recalculate()
+                pop.recalculate(state = state)
             if view:
                 movements = view_migrations(movement_function)(self._running, self.distance_matrix)
             else:

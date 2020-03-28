@@ -85,16 +85,16 @@ CONSISTENT_2000_2015 = ['SP.DYN.AMRT.MA',       # - Mortality rate, male
                         'SP.URB.GROW']          # - Urban population growth
 
 def get_world():
-    world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-    fix = {'Norway': 'NOR', 'France': 'FRA', 'N. Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
+    world = gpd.read_file('C:/Users/Sean/Documents/MATH_498/data/map/ne_110m_admin_0_countries.shp')
+    fix = {'Norway': 'NOR', 'France': 'FRA', 'Northern Cyprus': 'CYP', 'Somaliland': 'SOM', 'Kosovo': 'RKS'}
     for row in world.index:
-        if world.loc[row, 'name'] in fix:
-            world.loc[row, 'iso_a3'] = fix[world.loc[row, 'name']]
+        if world.loc[row, 'NAME_LONG'] in fix:
+            world.loc[row, 'ISO_A3'] = fix[world.loc[row, 'NAME_LONG']]
     return world
 
 def iso_dict(start = '2000', stop = '2015'):
     df = pd.read_csv('C:/Users/Sean/Documents/MATH_498/data/world_bank/WDIData.csv')
-    country_codes = set(get_world()['iso_a3']) - set(('SSD',))
+    country_codes = set(get_world()['ISO_A3']) - set(('SSD',))
     groups = df.groupby('Country Code')
     iso_d = {}
     for code, group_df in tqdm(groups):
@@ -166,19 +166,14 @@ def main():
     print(len(iso_dfs))
     all_feats = NECESSARY_FEATS
     #all_feats = TARGET_FEATS + FEATURES + CONSISTENT_2000_2015
-    targets = select_features(iso_dfs, all_feats, '2001', '2017')
-    filled_targets = fill_nas(targets)
-    features = select_features(iso_dfs, all_feats, '2000', '2016')
-    filled_features = fill_nas(features)
-    smooth_us = ['SM.POP.NETM']
-    smooth_column(filled_targets, smooth_us[0])
-    smooth_column(filled_features, smooth_us[0])
-    filled_targets['SM.POP.NETM'] = filled_targets['SM.POP.NETM'] / filled_targets['SP.POP.TOTL'] * 1000 #Turn Net Migration into a ratio
-    filled_features['SM.POP.NETM'] = filled_features['SM.POP.NETM'] / filled_features['SP.POP.TOTL'] * 1000 #Turn Net Migration into a ratio
-    filled_targets.to_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_targets.pkl')
-    filled_features.to_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_features.pkl')
-    print(filled_targets)
-    print(filled_features)
+    data = select_features(iso_dfs, all_feats, '2000', '2017')
+    filled_data = fill_nas(data)
+    smooth_us = NECESSARY_FEATS
+    for feat in smooth_us:
+        smooth_column(filled_data, feat)
+    filled_data['SM.POP.NETM'] = filled_data['SM.POP.NETM'] / filled_data['SP.POP.TOTL'] * 1000 #Turn Net Migration into a ratio
+    filled_data.to_pickle('C:/Users/Sean/Documents/MATH_498/code/country_data.pkl')
+    print(filled_data)
 
 if __name__ == '__main__':
     main()

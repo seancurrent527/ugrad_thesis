@@ -5,10 +5,6 @@ import importlib
 import geopandas as gpd
 from tqdm import tqdm
 import pandas as pd
-import keras.backend as K
-from keras.models import Model
-from keras.regularizers import l1
-from keras.layers import Dense, Input, Concatenate, Dropout
 from scipy.stats.stats import pearsonr, spearmanr
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import KernelDensity
@@ -22,7 +18,7 @@ TABS = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple', 'tab:bro
 
 def _parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--type', type = str, default = 'complex')
+    parser.add_argument('-s', '--state_model', action='store_true')
     return parser.parse_args()
 
 def correlate_countries(predictiondf, targetdf, duration = 10):
@@ -74,11 +70,12 @@ def est_density(arr, sample):
 
 def main():
     args = _parse_args()
-    targets = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/complex_targets.pkl')
-    year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_p_out.csv')
-    year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_m_out.csv')
-    year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_d_out.csv')
-    year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + args.type + '_b_out.csv')
+    modtype = 'state' + ('less' * (1 - args.state_model))
+    targets = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/country_data.pkl')
+    year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_p_out.csv')
+    year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_m_out.csv')
+    year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_d_out.csv')
+    year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_b_out.csv')
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
     m_targs = pd.DataFrame(data = np.array([df['SM.POP.NETM'].values for _, df in targets.groupby(level = 0)]).T,
