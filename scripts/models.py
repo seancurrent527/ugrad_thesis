@@ -11,13 +11,12 @@ def stateless_model(input_shape, wrap = 3):
         xhid1 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xin)
         xhid1 = Dropout(0.5)(xhid1)
         xhid2 = Concatenate()([xin, xhid1])
+        
         xout = Dense(input_shape[0])(xhid2)
 
         xhid3 = Concatenate()([xout, xhid2])
-        corr = Dense(input_shape[0], activation = 'tanh')(xhid3)
-        
-        xout = Lambda(lambda x: x[0] * x[1])([xout, corr])
-        combiner = Dense(input_shape[0], activation = 'sigmoid')(xout)
+
+        combiner = Dense(input_shape[0], activation = 'sigmoid')(xhid3)
         xout = Lambda(lambda x: x[1] * x[0] + (1 - x[0]) * x[2])([combiner, xin, xout])
 
         return Model(xin, xout)
@@ -41,7 +40,7 @@ def state_model(input_shape, wrap = 3):
     s0 =  Lambda(lambda x: K.zeros_like(x))(x0)
 
     def inner_model(input_shape):
-        x, s = Input(input_shape), Input(input_shape)
+        x, s = Input(input_shape, name = 'Xt'), Input(input_shape)
         h = Concatenate()([x, s])
         
         reset = Dense(input_shape[-1], activation = 'sigmoid')(h)
@@ -49,10 +48,10 @@ def state_model(input_shape, wrap = 3):
         hr = Concatenate()([hs, x])
 
         update = Dense(input_shape[-1], activation = 'sigmoid')(h)
-        hs2 = Lambda(lambda x: (1 - x[0]) * x[1])([update, s])
 
-        nx = Dense(input_shape[-1], activation = 'tanh')(hr)
-        ns = Lambda(lambda x: x[0] + (x[1] * x[2]))([hs2, update, nx])
+        hhat = Dense(input_shape[-1], activation = 'tanh')(hr)
+        
+        ns = Lambda(lambda x: (1 - x[0]) * x[1] + (x[0] * x[2]))([update, s, hhat])
 
         xout = Dense(input_shape[-1], activation = 'relu')(ns)
 

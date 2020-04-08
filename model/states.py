@@ -32,18 +32,12 @@ class State:
         if state:
             adjusted, state = State.state_network.predict([State.scaler.transform(self.features.values[np.newaxis, ...]), self.state])
             adjusted = State.scaler.inverse_transform(adjusted[:,:20])
-            #Apply migration limit
-            if self.mlimit is not None:
-                adjusted[0, 0] = np.sign(adjusted[0, 0]) * min(self.mlimit, abs(adjusted[0, 0]))
             self.migrants, self.deaths, self.births = adjusted[0, 0:3]
             self.features.values[:] = adjusted[0]
             self.state = state
         else:
             adjusted = State.network.predict(State.scaler.transform(self.features.values[np.newaxis, ...]))
             adjusted = State.scaler.inverse_transform(adjusted[:,:20])
-            #Apply migration limit
-            if self.mlimit is not None:
-                adjusted[0, 0] = np.sign(adjusted[0, 0]) * min(self.mlimit, abs(adjusted[0, 0]))
             self.migrants, self.deaths, self.births = adjusted[0, 0:3]
             self.features.values[:] = adjusted[0]
 
@@ -56,6 +50,8 @@ class State:
             self.migrants = self.features['SM.POP.NETM'] = self.migrants * value
         else:
             raise ValueError('\'' + method + '\' is not a valid value for parameter \'method\'')
+        if self.mlimit is not None:
+                self.migrants = self.features['SM.POP.NETM'] = np.sign(self.migrants) * min(abs(self.mlimit), abs(self.migrants))
 
     @classmethod
     def from_data(cls, mlimit = True):

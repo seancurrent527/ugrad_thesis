@@ -30,7 +30,7 @@ def main():
     model, inner = models.get_model('C:/Users/Sean/Documents/MATH_498/code/' + modtype + '_weights.h5', (20,), wrap = 4, state = args.state_model)
     weights = model.get_weights()
     #plot_model(model, to_file=modtype + 'model.png')
-    #plot_model(inner, to_file=modtype + 'inner.png')
+    plot_model(inner, to_file=modtype + 'inner.png', show_layer_names=False, show_shapes=True)
     print([w.shape for w in weights])
     plot_weights(weights)
     plt.show()

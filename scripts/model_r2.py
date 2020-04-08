@@ -4,7 +4,7 @@ import argparse
 import importlib
 import geopandas as gpd
 from tqdm import tqdm
-import pandas as pd
+import pandas as pd, numpy as np
 from scipy.stats.stats import pearsonr, spearmanr
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import KernelDensity
@@ -21,14 +21,14 @@ def _parse_args():
     parser.add_argument('-s', '--state_model', action='store_true')
     return parser.parse_args()
 
-def correlate_countries(predictiondf, targetdf, duration = 10):
+def correlate_countries(predictiondf, targetdf, duration = 15):
     # Columns: Countries
     # Rows   : Years
     preds, targs = predictiondf.iloc[:duration], targetdf.iloc[:duration]
-    corrs = pd.Series([spearmanr(preds[country].values, targs[country].values)[0] for country in targs.columns], targs.columns)
+    corrs = pd.Series([np.corrcoef(preds[country], targs[country])[0, 1] for country in targs.columns], targs.columns)
     #mae = pd.Series([abs(preds[country].values - targs[country].values).mean() for country in targs.columns], targs.columns)
     #mape = pd.Series([np.mean(np.abs((preds[country].values - targs[country].values) / targs[country].values)) for country in targs.columns], targs.columns)
-    return corrs ** 2
+    return corrs
 
 def correlation_vectors(corr_results):
     df = pd.concat(corr_results, axis = 1)
@@ -94,22 +94,23 @@ def main():
 
     world = get_world()
     world.index = world['ISO_A3']
+    world = world.loc[list(corr_vecs.index)]
     world[['p_corr', 'm_corr', 'd_corr', 'b_corr']] = corr_vecs[['p', 'm', 'd', 'b']]
-    fig = plt.figure(figsize = (10,6))
+    fig = plt.figure(figsize = (12,6))
     ax = plt.subplot(221)
     world.plot('p_corr', cmap = 'RdBu', ax=ax)
-    ax.set_title('Population $R^{2}$')
+    ax.set_title('Population Correlation')
     ax = plt.subplot(222)
     world.plot('m_corr', cmap = 'RdBu', ax=ax)
-    ax.set_title('Migration $R^{2}$')
+    ax.set_title('Migration Correlation')
     ax = plt.subplot(223)
     world.plot('d_corr', cmap = 'RdBu', ax=ax)
-    ax.set_title('Death Rate $R^{2}$')
+    ax.set_title('Death Rate Correlation')
     ax = plt.subplot(224)
     fig.subplots_adjust(right=0.8)
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     world.plot('b_corr', legend=True, cmap = 'RdBu', ax=ax, cax = cbar_ax)
-    ax.set_title('Birth Rate $R^{2}$')
+    ax.set_title('Birth Rate Correlation')
     plt.show()
     '''
     clust = OPTICS()

@@ -5,11 +5,14 @@ from scipy.optimize import curve_fit
 import statsmodels.api as sm
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 STOCK_DATA = 'C:/Users/Sean/Documents/MATH_498/data/world_bank/intercountry_migration_1960-2000.csv'
 COUNTRY_DATA = 'C:/Users/Sean/Documents/MATH_498/code/country_data.pkl'
 DISTANCE_DATA = 'C:/Users/Sean/Documents/MATH_498/data/distance_matrix.txt'
 ISO_DATA = 'C:/Users/Sean/Documents/MATH_498/data/country_codes.csv'
+
+np.random.seed(147)
 
 def get_data():
     names = ['origin_name', 'origin_code', 'gender_name', 'gender_code', 'dest_name', 'dest_code', '1960', '1970', '1980', '1990', '2000']
@@ -47,13 +50,14 @@ def distance_matrix(distance_file, iso_file):
             print(c)
     distance_matrix.index = three_codes
     distance_matrix.columns = three_codes
-    distance_matrix /= distance_matrix.max().max()
+    #distance_matrix /= distance_matrix.max().max()
     return distance_matrix
 
 def social_distance_matrix(features):
+    features = pd.DataFrame(StandardScaler().fit_transform(features),
+                            columns = features.columns, index = features.index)
     sdmat = pd.DataFrame(0, columns = features.index, index = features.index)
     euclidean_distance = lambda x, y: ( (x - y) ** 2 ).sum() ** 0.5
-    cos_distance = lambda x, y: 1 - ( (x * y).sum() ) / ( (x**2).sum() * (y**2).sum() ) ** 0.5
     for col in tqdm(sdmat.columns):
         for row in sdmat.index:
             sdmat.loc[row, col] = euclidean_distance(features.loc[row], features.loc[col])
@@ -77,6 +81,10 @@ def r_squared(y_true, y_pred):
 def rmse(y_true, y_pred):
     return ((y_true - y_pred)**2).sum()**0.5
 
+def cpc(y_true, y_pred):
+    common = np.array([y_true, y_pred]).min(axis = 0)
+    return common.sum() / (y_true.sum() + y_pred.sum())
+
 def data_arrays(features, migrations, dmat, sdmat):
     x, y = [], []
     for s_row in tqdm(sdmat.index):
@@ -93,11 +101,12 @@ def data_arrays(features, migrations, dmat, sdmat):
     return np.array(x), np.array(y)
 
 def fit_distribution(x, y):
-    p = 6
+    p = 5
     bounds = ([-p, -p, 0, 0, -np.inf, -p, -p],
               [p, p, 1, np.inf, np.inf, p, p])
     try:
-        popt, _ = curve_fit(gravity_distribution, x, y, bounds = bounds)
+        popt, _ = curve_fit(gravity_distribution, x, y, bounds = bounds,
+        p0 = [1, 1, 0.5, 1, 0, 1, 1])
     except RuntimeError:
         print('Could not complete.')
         return False
@@ -106,7 +115,7 @@ def fit_distribution(x, y):
         return gravity_distribution(x, *popt)
 
     pred = dist_function(x)
-    return dist_function, popt, r_squared(y, pred), rmse(y, pred)
+    return dist_function, popt, r_squared(y, pred), cpc(y, pred), rmse(y, pred)
 
 def from_to_function(features, dmat, sdmat, dist_function):
     
@@ -152,9 +161,10 @@ def main():
         result = fit_distribution(x, y)
         if not result:
             continue
-        dist_func, params, r2, loss = result
+        dist_func, params, r2, cpc_, loss = result
         print(params)
         print(r2)
+        print(cpc_)
         print(loss)
         from_to = from_to_function(features, gdmat_, sdmat_, dist_func)
         with open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + '_'.join(c.lower().split()) + '_migrations.csv', 'w') as fp:

@@ -6,6 +6,8 @@ import keras.backend as K
 from keras.layers import Layer
 from keras import initializers, regularizers, constraints, activations, losses
 import geopandas as gpd
+from models import WRAP
+from sklearn.preprocessing import StandardScaler
 
 class ConCurrent(Layer):
     def __init__(self, units, repeats,
@@ -93,13 +95,39 @@ def noisier(X, y, degree = 0.01, samples = 1000):
     return np.array(Xdata), np.array(ydata)
 
 def r2_keras(y_true, y_pred):
-    SS_res =  K.sum(K.square(y_true - y_pred))
-    SS_tot = K.sum(K.square(y_true - K.mean(y_true))) 
-    return (1 - SS_res/(SS_tot + K.epsilon()))
+    y_true, y_pred = K.reshape(y_true, (-1, WRAP, 20)), K.reshape(y_pred, (-1, WRAP, 20))
+    SS_res =  K.sum(K.square(y_true - y_pred), axis = 1)
+    SS_tot = K.sum(K.square(y_true - K.repeat(K.mean(y_true, axis = 1), WRAP)), axis = 1)
+    return K.mean((1 - SS_res/(SS_tot + K.epsilon())))
 
 def r2_population(y_true, y_pred):
-    y_true, y_pred = y_true[..., :4], y_pred[..., :4]
-    return r2_keras(y_true, y_pred)
+    y_true, y_pred = K.reshape(y_true, (-1, WRAP, 20)), K.reshape(y_pred, (-1, WRAP, 20))
+    y_true, y_pred = y_true[...,:4], y_pred[..., :4]
+    SS_res =  K.sum(K.square(y_true - y_pred), axis = 1)
+    SS_tot = K.sum(K.square(y_true - K.repeat(K.mean(y_true, axis = 1), WRAP)), axis = 1)
+    return K.mean((1 - SS_res/(SS_tot + K.epsilon())))
+
+
+def weighted_mae(y_true, y_pred):
+    weights = np.ones((20,))
+    all_weights = []
+    for i in range(WRAP):
+        all_weights.append((1 - (0.1 * i)) * weights)
+    weights = np.concatenate(all_weights)
+    weights = K.constant(weights)
+    mae = K.abs(y_true - y_pred)
+    return K.sum(mae * weights)
+
+def correlation_loss(y_true, y_pred):
+    # want to maximize correlation
+    y_true, y_pred = K.reshape(y_true, (-1, WRAP, 20)), K.reshape(y_pred, (-1, WRAP, 20))
+    mx = K.repeat(K.mean(y_true, axis = 1), WRAP)
+    my = K.repeat(K.mean(y_pred, axis = 1), WRAP)
+    xm, ym = y_true-mx, y_pred-my
+    r_num = K.sum(xm * ym, axis = 1)
+    r_den = K.sum(K.sum(K.square(xm), axis = 1) * K.sum(K.square(ym), axis = 1))
+    r = r_num / r_den
+    return 1 - r
 
 def wrap_years(X, y, num_countries, wrap):
     year_arrays = [y[i * num_countries: (i + 1) * num_countries] for i in range(len(y) // num_countries)]
@@ -119,6 +147,11 @@ def get_world():
         if world.loc[row, 'NAME_LONG'] in fix:
             world.loc[row, 'ISO_A3'] = fix[world.loc[row, 'NAME_LONG']]
     return world
+
+def iso_to_continent():
+    world = get_world().drop_duplicates('ISO_A3')
+    world.index = world['ISO_A3']
+    return world['CONTINENT']
 
 def distance_matrix(distance_file, iso_file):
     distance_matrix = pd.read_csv(distance_file, index_col=0, keep_default_na=False, na_values=[])
@@ -140,3 +173,13 @@ def distance_matrix(distance_file, iso_file):
     distance_matrix.index = three_codes
     distance_matrix.columns = three_codes
     return distance_matrix
+
+def social_distance_matrix(features):
+    features = pd.DataFrame(StandardScaler().fit_transform(features),
+                            columns = features.columns, index = features.index)
+    sdmat = pd.DataFrame(0, columns = features.index, index = features.index)
+    euclidean_distance = lambda x, y: ( (x - y) ** 2 ).sum() ** 0.5
+    for col in sdmat.columns:
+        for row in sdmat.index:
+            sdmat.loc[row, col] = euclidean_distance(features.loc[row], features.loc[col])
+    return sdmat

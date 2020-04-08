@@ -11,10 +11,12 @@ from keras.regularizers import l1
 from keras.layers import Dense, Input, Concatenate, Dropout, Lambda
 from sklearn.preprocessing import MinMaxScaler
 from models import get_model
+from gravity_regression import iso_to_continent
 
 def _parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--state_model', action='store_true')
+    parser.add_argument('-c', '--continent', type = str, default = '')
     return parser.parse_args()
 
 def r2_keras(y_true, y_pred):
@@ -51,7 +53,7 @@ def plot_2000(targs, preds, countries):
     testing_states = [c in countries for c in preds.columns]
     testing_targs = targs.iloc[:, testing_states]
     testing_preds = preds.iloc[1:, testing_states]
-    for i in range(len(testing_targs.columns) // 16 + (len(testing_targs.columns) > 16)):
+    for i in range(len(testing_targs.columns) // 16 + bool(len(testing_targs.columns) % 16)):
         fig = plt.figure(figsize=(8,8), frameon=False)
         cut = i * 16
         t, p = testing_targs.iloc[:, cut:cut + 16], testing_preds.iloc[:, cut:cut + 16]  
@@ -82,6 +84,15 @@ def main():
     year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_m_out.csv')
     year_data_d = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_d_out.csv')
     year_data_b = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_b_out.csv')
+    
+    countries = ['AUS', 'USA', 'RUS', 'CAN', 'AFG', 'BRA', 'DEU', 'FRA',
+                 'GBR', 'CHN', 'IND', 'ARE', 'SAU', 'MEX', 'ESP', 'CHE']
+    #countries = ['IND', 'ARG', 'COL', 'CHL', 'IDN', 'PNG', 'PHL', 'COD',
+     #            'ANG', 'CAF', 'COG', 'NIG']
+    continent_map = iso_to_continent()
+    if args.continent:
+        countries = [iso for iso in continent_map.index if continent_map[iso].lower() == args.continent.lower()]
+    
     targets = feats
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
@@ -91,8 +102,7 @@ def main():
                            columns = year_data_d.columns)
     b_targs = pd.DataFrame(data = np.array([df['SP.DYN.CBRT.IN'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_b.columns)
-    countries = ['AUS', 'USA', 'RUS', 'CAN', 'AFG', 'BRA', 'DEU', 'FRA',
-                 'GBR', 'CHN', 'IND', 'ARE', 'SAU', 'MEX', 'ESP', 'CHE']
+    
     np.random.seed(147)
     plot_2000(p_targs, year_data_p, countries)
     np.random.seed(147)
@@ -101,6 +111,30 @@ def main():
     plot_2000(d_targs, year_data_d, countries)
     np.random.seed(147)
     plot_2000(b_targs, year_data_b, countries)
+    
+    phl = targets['SP.DYN.CDRT.IN'].loc['PHL', :'2015'].values
+    chl = targets['SP.DYN.CBRT.IN'].loc['CHL', :'2015'].values
+    phl_preds = year_data_d['PHL'].iloc[:len(phl)].values
+    chl_preds = year_data_b['CHL'].iloc[:len(chl)].values
+    yrs = [i + 2000 for i in range(len(phl))]
+    fig, axes = plt.subplots(1, 2)
+    axes[0].plot(yrs, phl, color = 'tab:blue')
+    axes[0].plot(yrs, phl_preds, color = 'tab:orange', linestyle = '--')
+    axes[0].set_title('Death Rate in the Philippines', fontsize = 16)
+    axes[0].set_xlabel('Year', fontsize = 12)
+    axes[0].set_ylabel('Death Rate (deaths per 1000 people)', fontsize = 12)
+    axes[0].set_xticks([2000, 2005, 2010, 2015])
+    axes[0].set_xlim([2000, 2015])
+    axes[0].legend(['Observed', 'Predicted'])
+    axes[1].plot(yrs, chl, color = 'tab:blue')
+    axes[1].plot(yrs, chl_preds, color = 'tab:orange', linestyle = '--')
+    axes[1].set_title('Birth Rate in Chile', fontsize = 16)
+    axes[1].set_xlabel('Year', fontsize = 12)
+    axes[1].set_ylabel('Birth Rate (births per 1000 people)', fontsize = 12)
+    axes[1].legend(['Observed', 'Predicted'])
+    axes[1].set_xticks([2000, 2005, 2010, 2015])
+    axes[1].set_xlim([2000, 2015])
+    plt.show()
 
 
 

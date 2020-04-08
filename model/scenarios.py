@@ -8,14 +8,15 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors
 from states import State
-from utils import noisier, wrap_years, get_world
+from utils import noisier, wrap_years, get_world, social_distance_matrix
 from tqdm import tqdm
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 import cartopy.crs as ccrs
 import cartopy.io.shapereader as shpreader
 
 def constant_distribution(states, distance_matrix):
-    movements = pd.DataFrame(0, index = distance_matrix.index, columns = distance_matrix.columns)
+    countries = [pop.name for pop in states]
+    movements = pd.DataFrame(0, index = countries, columns = countries)
     migrants = pd.Series({pop.name: pop.population * pop.migrants / 1000 for pop in states})
     populations = pd.Series({pop.name: pop.population for pop in states})
     acceptors = (migrants > 0) * migrants
@@ -29,7 +30,8 @@ def constant_distribution(states, distance_matrix):
     return movements
 
 def gravity_distribution(states, distance_matrix, mc = 1):
-    movements = pd.DataFrame(0, index = distance_matrix.index, columns = distance_matrix.columns)
+    countries = [pop.name for pop in states]
+    movements = pd.DataFrame(0, index = countries, columns = countries)
     features = pd.DataFrame({pop.name: pop.features for pop in states})
     geo_distance = distance_matrix / distance_matrix.max().max()
     sq_distance_function = lambda x, y: ((features[x] - features[y])**2).sum() + geo_distance.loc[x, y]**2
@@ -37,7 +39,32 @@ def gravity_distribution(states, distance_matrix, mc = 1):
     for source in movements.index:
         for destination in movements.columns:
             if source != destination:
-                movements.loc[source, destination] = mc * (features[source]['SM.POP.NETM'] - features[destination]['SM.POP.NETM']) / 1000 * gravity_function(source, destination)
+                movements.loc[source, destination] = mc * (features[destination]['SM.POP.NETM'] - features[source]['SM.POP.NETM']) / 1000 * gravity_function(source, destination)
+    return movements
+
+def na_gravity_distribution(states, distance_matrix, mc = 1):
+    countries = [pop.name for pop in states]
+    movements = pd.DataFrame(0, index = countries, columns = countries)
+    features = pd.DataFrame({pop.name: pop.features for pop in states})
+    social_distance = social_distance_matrix(features.transpose())
+    geo_distance = distance_matrix / distance_matrix.max().max()
+    
+    def gravity_function(source, destination):
+        p1, p2 = features[source]['SP.POP.TOTL'], features[destination]['SP.POP.TOTL']
+        gd = geo_distance.loc[source, destination]
+        sd = social_distance.loc[source, destination]
+        #sdp, gdp, dr, c, b, p1p, p2p = [2.91969034e+00, 3.09641037e+00, 1.24497981e-01, 5.90492723e-19,
+         #                               -1.84534024e+03, 9.18318206e-01, 3.12928645e+00]
+        sdp, gdp, dr, c, b, p1p, p2p = [5.00000000e+00, 1.01878632e+00, 8.52035094e-04, 6.67198465e-02,
+        7.53251485e+00, 4.21096346e-01, 6.04829088e-01]
+        denom = dr * sd**sdp + (1 - dr) * gd**gdp
+        num = p1**p1p * p2**p2p
+        return c * num / denom + b
+
+    for source in countries:
+        for destination in countries:
+            if source != destination:
+                movements.loc[source, destination] = gravity_function(source, destination)
     return movements
 
 def view_migrations(dist_function, country = 'USA'):
@@ -45,7 +72,8 @@ def view_migrations(dist_function, country = 'USA'):
     def distribution_function(*args, **kwargs):
         movements = dist_function(*args, **kwargs)
         world = get_world()
-        world.index = world['iso_a3']
+        world.index = world['ISO_A3']
+        world = world.loc[movements.index]
         world['migrations'] = movements[country]
         world['migrations'] = world['migrations'].fillna(0.0)
         print(world['migrations'][country])
@@ -57,29 +85,6 @@ def view_migrations(dist_function, country = 'USA'):
         tuples = list(zip(map(norm, values), clrs))
         cmap = matplotlib.colors.LinearSegmentedColormap.from_list('', tuples)
         world.plot('migrations', cmap=cmap, norm=norm)
-        m=plt.cm.ScalarMappable(cmap=cmap)
-        plt.colorbar(m, boundaries = np.linspace(-bound, bound, 101))
-        plt.show()
-        return movements
-
-    def distribution_function_(*args, **kwargs):
-        movements = dist_function(*args, **kwargs)
-        shapename = 'admin_0_countries'
-        countries_shp = shpreader.natural_earth(resolution='110m',
-                                        category='cultural', name=shapename)
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        migrations = movements['USA']
-        bound = max(abs(migrations.max()), abs(migrations.min()))
-        values = [-bound, 0, bound]
-        clrs = ['tab:red', 'white', 'tab:blue']
-        norm = plt.Normalize(-bound, bound)
-        tuples = list(zip(map(norm, values), clrs))
-        cmap = matplotlib.colors.LinearSegmentedColormap.from_list('', tuples)
-        for country in shpreader.Reader(countries_shp).records():
-            iso = country.attributes['ISO_A3']
-            if iso not in migrations.index:
-                migrations[iso] = 0.0
-            ax.add_geometries((country.geometry,), ccrs.PlateCarree(), facecolor=cmap(norm(migrations[iso])), label=iso)
         m=plt.cm.ScalarMappable(cmap=cmap)
         plt.colorbar(m, boundaries = np.linspace(-bound, bound, 101))
         plt.show()
@@ -114,7 +119,7 @@ class Scenario:
         Xdev = np.vstack([State.to_X_array(self.states[yr])[~training_states] for yr in self.dev_years])
         y = np.vstack([State.to_y_array(self.states[yr])[training_states] for yr in self.train_years])
         ydev = np.vstack([State.to_y_array(self.states[yr])[~training_states] for yr in self.dev_years])
-        scaler = MinMaxScaler()
+        scaler = StandardScaler()
         print(X.shape, y.shape)
         self.network.compile(**compile_args)
         X = scaler.fit_transform(X)
@@ -148,7 +153,7 @@ class Scenario:
         self._running = self.states[year]
         if sub_states:
             self._running = [state for state in self._running if state.name in sub_states]
-        separator = '_' if reset_period is None else '_with_resets_'
+        separator = ('_subset' * bool(sub_states)) + '_' + ('with_resets_' * bool(reset_period))
         self.poutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_p_out.csv', 'w')
         self.moutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_m_out.csv', 'w')
         self.doutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_d_out.csv', 'w')
@@ -169,14 +174,10 @@ class Scenario:
                 movements = view_migrations(movement_function)(self._running, self.distance_matrix)
             else:
                 movements = movement_function(self._running, self.distance_matrix)
-            for destination in self._running:
-                if destination.migrants > 0:
-                    destination.adjust_migrants(0, method = 'set')
-                    for source in self._running:
-                        if source.name != destination.name:
-                            destination.adjust_migrants(mc * movements[destination.name][source.name], method = 'add')
-                if destination.migrants < 0:
-                    destination.adjust_migrants(mc, method = 'scale')
             for pop in self._running:
+                #NOTE: inclusion of model causes WILD oscillations.
+                #migrants = movements.loc[:, pop.name].sum() - movements.loc[pop.name].sum()
+                #migrants = (migrants / pop.population) * 1000
+                #pop.adjust_migrants(migrants, method='set')
                 pop.timestep()
             self.write_out()
