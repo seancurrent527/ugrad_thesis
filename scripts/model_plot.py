@@ -78,7 +78,7 @@ def get_world():
 
 def main():
     args = _parse_args()
-    modtype = 'state' + ('less' * (1 - args.state_model))
+    modtype = 'subset_state' + ('less' * (1 - args.state_model))
     feats = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/country_data.pkl')
     year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_p_out.csv')
     year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_m_out.csv')

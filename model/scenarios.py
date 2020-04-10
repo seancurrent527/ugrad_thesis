@@ -175,7 +175,7 @@ class Scenario:
             else:
                 movements = movement_function(self._running, self.distance_matrix)
             for pop in self._running:
-                #NOTE: inclusion of model causes WILD oscillations.
+                #NOTE: inclusion of model causes WILD oscillations or convergence to a constant.
                 #migrants = movements.loc[:, pop.name].sum() - movements.loc[pop.name].sum()
                 #migrants = (migrants / pop.population) * 1000
                 #pop.adjust_migrants(migrants, method='set')
