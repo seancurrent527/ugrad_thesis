@@ -3,15 +3,20 @@ from keras.regularizers import l2, l1, l1_l2
 from keras.models import Model
 import keras.backend as K
 
+WRAP = 3
+
 def stateless_model(input_shape, wrap = 3):
     x0 = Input(input_shape)
 
     def inner_model(input_shape):
         xin = Input(input_shape)
-        xhid1 = Dense(32, activation='relu', kernel_regularizer=l1(0.15))(xin)
+        xhid1 = Dense(32, activation='relu')(xin)
         xhid1 = Dropout(0.5)(xhid1)
-        xhid2 = Concatenate()([xin, xhid1])
-        
+        xhid1 = Concatenate()([xin, xhid1])
+        xhid2 = Dense(32, activation='relu')(xhid1)
+        xhid2 = Dropout(0.5)(xhid2)
+        xhid2 = Concatenate()([xhid1, xhid2])
+
         xout = Dense(input_shape[0])(xhid2)
 
         xhid3 = Concatenate()([xout, xhid2])
@@ -53,7 +58,12 @@ def state_model(input_shape, wrap = 3):
         
         ns = Lambda(lambda x: (1 - x[0]) * x[1] + (x[0] * x[2]))([update, s, hhat])
 
-        xout = Dense(input_shape[-1], activation = 'relu')(ns)
+        xhid = Concatenate()([x, ns])
+        xout = Dense(input_shape[-1])(xhid)
+
+        xhid = Concatenate()([xout, x])
+        combiner = Dense(input_shape[-1], activation = 'sigmoid')(xhid)
+        xout = Lambda(lambda x: x[1] * x[0] + (1 - x[0]) * x[2])([combiner, x, xout])
 
         return Model([x, s], [xout, ns])
     
