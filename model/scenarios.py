@@ -158,6 +158,7 @@ class Scenario:
         self.moutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_m_out.csv', 'w')
         self.doutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_d_out.csv', 'w')
         self.boutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_b_out.csv', 'w')
+        self.sdoutfile = open('C:/Users/Sean/Documents/MATH_498/code/generated_data/' + year + separator + self.name + '_sd_out.csv', 'w')
         print(*[pop.name for pop in self._running], sep = ',', file = self.poutfile)
         print(*[pop.name for pop in self._running], sep = ',', file = self.moutfile)
         print(*[pop.name for pop in self._running], sep = ',', file = self.doutfile)
@@ -170,6 +171,10 @@ class Scenario:
                 continue
             for pop in self._running:
                 pop.recalculate(state = state)
+            features = pd.DataFrame({pop.name: pop.features for pop in self._running})
+            sd = social_distance_matrix(features.transpose())
+            values = np.array([sd.values[i, j] for i in range(len(sd)) for j in range(len(sd)) if i < j])
+            print(*values, sep = ',', file = self.sdoutfile)
             if view:
                 movements = view_migrations(movement_function)(self._running, self.distance_matrix)
             else:
@@ -177,7 +182,8 @@ class Scenario:
             for pop in self._running:
                 #NOTE: inclusion of model causes WILD oscillations or convergence to a constant.
                 #migrants = movements.loc[:, pop.name].sum() - movements.loc[pop.name].sum()
-                #migrants = (migrants / pop.population) * 1000
+                #migrants = (migrants / pop.population)# * 1000
+                #print(migrants)
                 #pop.adjust_migrants(migrants, method='set')
                 pop.timestep()
             self.write_out()

@@ -11,6 +11,7 @@ from keras.regularizers import l1
 from keras.layers import Dense, Input, Concatenate, Dropout, Lambda
 from sklearn.preprocessing import MinMaxScaler
 from models import get_model
+from sklearn.neighbors import KernelDensity
 from gravity_regression import iso_to_continent
 
 def _parse_args():
@@ -32,6 +33,31 @@ def r2_score(y_true, y_pred):
 def r2_population(y_true, y_pred):
     y_true, y_pred = y_true[:, :4], y_pred[:, :4]
     return r2_score(y_true, y_pred)
+
+def est_density(arr, sample):
+    kd = KernelDensity()
+    kd.fit(arr.reshape(-1, 1))
+    return kd.score_samples(sample.reshape(-1, 1))
+
+def plot_density(sds):
+    a = 1
+    sample = np.linspace(min(sds), max(sds), 5000)
+    for label, row in sds.iterrows():
+        dense = np.exp(est_density(row.values, sample))
+        #plt.fill_between(sample, dense, color = 'grey', alpha = a * 0.05)
+        plt.plot(sample, dense, color = 'tab:orange', alpha = a * 0.05)
+        a += 1
+
+def make_plot(sds):
+    sds2 = sds ** 5
+    plot_density(sds2)
+
+    plt.xlim(0, max(sds2))
+    plt.ylim(0, 0.0008)
+
+    plt.ylabel('Density', fontsize = 12)
+    plt.xlabel('$d_{x}^{k}$', fontsize = 12)
+    plt.title('Estimated Feature Distance $d_{x}^{k}$ Density', fontsize = 16)
 
 def test_effects(model, feats, targets):
     scaler = MinMaxScaler()
@@ -78,7 +104,7 @@ def get_world():
 
 def main():
     args = _parse_args()
-    modtype = 'subset_state' + ('less' * (1 - args.state_model))
+    modtype = 'subset_' * bool(args.continent) + 'state' + ('less' * (1 - args.state_model))
     feats = pd.read_pickle('C:/Users/Sean/Documents/MATH_498/code/country_data.pkl')
     year_data_p = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_p_out.csv')
     year_data_m = pd.read_csv('C:/Users/Sean/Documents/MATH_498/code/generated_data/2000_' + modtype + '_m_out.csv')
@@ -93,7 +119,10 @@ def main():
     if args.continent:
         countries = [iso for iso in continent_map.index if continent_map[iso].lower() == args.continent.lower()]
     
-    targets = feats
+    if args.continent:
+        targets = feats.loc[countries]
+    else:
+        targets = feats
     p_targs = pd.DataFrame(data = np.array([df['SP.POP.TOTL'].values for _, df in targets.groupby(level = 0)]).T,
                            columns = year_data_p.columns)
     m_targs = pd.DataFrame(data = np.array([df['SM.POP.NETM'].values for _, df in targets.groupby(level = 0)]).T,
